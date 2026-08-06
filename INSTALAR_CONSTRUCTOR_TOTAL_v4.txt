@@ -1,0 +1,48 @@
+CONSTRUCTOR TOTAL V4 — FANTASMAS BIKER'S SHOP
+
+IMPORTANTE
+Esta actualización conserva productos, promociones, rifas, eventos, usuarios y configuraciones actuales.
+No reemplaces supabase-config.js.
+
+PASO 1 — ACTUALIZAR SUPABASE
+1. Entra a tu proyecto de Supabase.
+2. Abre SQL Editor.
+3. Copia y ejecuta completo el archivo database_custom_sections.sql.
+4. Debe aparecer “Success”. Solo se ejecuta una vez.
+
+PASO 2 — SUBIR A GITHUB
+Reemplaza o agrega en la raíz del repositorio estos archivos:
+- admin.html
+- editor.js
+- editor.css
+- site-editor.js
+- editor-public.css
+- database_custom_sections.sql
+- database_editor.sql
+
+PASO 3 — ACTUALIZAR
+Espera a que Cloudflare Pages termine el despliegue y presiona Ctrl + F5 en el panel.
+
+CÓMO CREAR UNA SECCIÓN
+1. Entra a “Diseñar página”.
+2. Pulsa “+ Nueva” en la columna Secciones.
+3. Edita nombre, título, descripción, texto adicional, tema, alineación y presentación.
+4. Puedes subir una imagen y elegir derecha, izquierda, fondo o sin imagen.
+5. Pulsa “+ Botón” para agregar uno o varios botones.
+6. En cada botón elige sección interna, enlace externo, WhatsApp, llamada, correo o sin enlace.
+7. Arrastra la sección para cambiar su posición.
+8. Pulsa “Publicar cambios”.
+
+FUNCIONES INCLUIDAS
+- Crear secciones ilimitadas.
+- Editar todos sus textos.
+- Imagen opcional desde el panel.
+- Temas negro, azul, rosa o degradado.
+- Alineación izquierda, centro o derecha.
+- Diseños de dos columnas, destacado, compacto o centrado.
+- Varios botones por sección.
+- Ordenar, mostrar, ocultar y eliminar secciones creadas.
+- Vista previa para computadora y celular.
+- Enlaces internos sin escribir códigos #manualmente.
+
+Las secciones esenciales de la tienda permanecen protegidas para evitar borrar accidentalmente el encabezado o el pie de página.

@@ -15,6 +15,9 @@
   let selectedSectionKey = "";
   let initialized = false;
   let draggedKey = "";
+  let customSchemaReady = false;
+  const deletedSectionKeys = new Set();
+  const pendingMediaRemovals = new Set();
   const fixedSections = new Set(["header", "footer"]);
   const specialSections = new Set(["header", "hero", "announcement", "footer"]);
   const sectionAnchors = {
@@ -44,6 +47,17 @@
     allies: "Aliados Fantasma",
     contact: "Contacto",
     footer: "Pie de página"
+  };
+  const isCustomSection = (section) => Boolean(section && (section.section_type === "custom" || section.section_key.startsWith("custom_")));
+  const customContent = (section) => {
+    const value = section?.content;
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  };
+  const sectionAnchor = (section) => {
+    if (!section) return "";
+    if (sectionAnchors[section.section_key]) return sectionAnchors[section.section_key];
+    if (isCustomSection(section)) return `#${customContent(section).anchor_id || `seccion-${section.section_key.replace(/^custom_/, "").slice(0, 8)}`}`;
+    return "";
   };
   const sectionFields = {
     header: [
@@ -150,8 +164,8 @@
 
   function linkSectionOptions(currentValue = "") {
     const options = sections.length
-      ? sections.filter((section) => sectionAnchors[section.section_key]).map((section) => ({
-          value: sectionAnchors[section.section_key],
+      ? sections.filter((section) => sectionAnchor(section)).map((section) => ({
+          value: sectionAnchor(section),
           label: `${section.label}${section.enabled ? "" : " · oculta"}`
         }))
       : Object.entries(sectionAnchors).map(([key, value]) => ({ value, label: defaultSectionLabels[key] || key }));
@@ -269,7 +283,17 @@
       $("#sectionEditorStatus").textContent = "Falta instalar la base del editor";
       return;
     }
-    sections = results[0].data || [];
+    const sectionRows = results[0].data || [];
+    deletedSectionKeys.clear();
+    pendingMediaRemovals.clear();
+    customSchemaReady = Boolean(sectionRows[0] && Object.prototype.hasOwnProperty.call(sectionRows[0], "content") && Object.prototype.hasOwnProperty.call(sectionRows[0], "section_type"));
+    sections = sectionRows.map((section) => ({
+      ...section,
+      section_type: section.section_type || (section.section_key.startsWith("custom_") ? "custom" : "system"),
+      content: customContent(section)
+    }));
+    $("#newSectionButton").disabled = !customSchemaReady;
+    $("#newSectionButton").title = customSchemaReady ? "Crear una sección" : "Ejecuta database_custom_sections.sql en Supabase";
     categories = results[1].data || [];
     raffles = results[2].data || [];
     events = results[3].data || [];
@@ -281,7 +305,7 @@
     fillCategoryOptions();
     if (!selectedSectionKey && sections.length) selectSection(sections[0].section_key);
     applyPreviewSections();
-    $("#sectionEditorStatus").textContent = "Editor listo";
+    $("#sectionEditorStatus").textContent = customSchemaReady ? "Editor total listo" : "Falta activar secciones nuevas en Supabase";
     initialized = true;
   }
 
@@ -294,7 +318,7 @@
     container.innerHTML = sections.map((section) => `
       <article class="section-row${section.section_key === selectedSectionKey ? " selected" : ""}" data-section-key="${safe(section.section_key)}" draggable="${fixedSections.has(section.section_key) ? "false" : "true"}">
         <span class="drag-handle" title="${fixedSections.has(section.section_key) ? "Posición fija" : "Arrastrar"}">${fixedSections.has(section.section_key) ? "🔒" : "⠿"}</span>
-        <div class="section-identity"><b>${safe(section.label)}</b><small>${safe(section.enabled ? section.layout : "OCULTA")}</small></div>
+        <div class="section-identity"><b>${safe(section.label)}</b><small>${safe(section.enabled ? `${section.layout}${isCustomSection(section) ? " · PERSONALIZADA" : ""}` : "OCULTA")}</small></div>
         <button class="section-visible${section.enabled ? "" : " off"}" type="button" data-toggle-section="${safe(section.section_key)}" title="${section.enabled ? "Ocultar" : "Mostrar"}">${section.enabled ? "●" : "○"}</button>
       </article>`).join("");
     bindSectionDrag();
@@ -313,10 +337,16 @@
     form.elements.subtitle.value = section.subtitle || "";
     form.elements.layout.value = section.layout || "grid";
     form.elements.enabled.checked = section.enabled;
+    setLayoutLabels(isCustomSection(section));
     $("#genericSectionControls").hidden = specialSections.has(key);
     $("#heroSectionControls").hidden = key !== "hero";
     $("#tickerSectionControls").hidden = key !== "announcement";
+    $("#customSectionControls").hidden = !isCustomSection(section);
+    $("#sectionInspectorHint").textContent = isCustomSection(section)
+      ? "Esta sección y sus botones se publican juntos al guardar los cambios."
+      : "Los productos, promociones, rifas y eventos se editan desde sus apartados del menú.";
     renderExtraControls(key);
+    if (isCustomSection(section)) renderCustomSectionControls(section);
     if (key === "hero") {
       ["hero_eyebrow","hero_title","hero_highlight","hero_intro","main_cta_text","main_cta_url","catalog_cta_text","catalog_cta_url"].forEach((name) => form.elements[name].value = storeSettings[name] || "");
       form.elements.event_datetime.value = localDate(storeSettings.event_datetime);
@@ -344,6 +374,64 @@
     }).join("")}` : "";
   }
 
+  function normalizeCustomContent(section) {
+    const current = customContent(section);
+    const anchorId = current.anchor_id || `seccion-${section.section_key.replace(/^custom_/, "").slice(0, 8)}`;
+    section.content = {
+      anchor_id: anchorId,
+      eyebrow: current.eyebrow || "SECCIÓN PERSONALIZADA",
+      body: current.body || "",
+      theme: ["dark","blue","pink","gradient"].includes(current.theme) ? current.theme : "dark",
+      alignment: ["left","center","right"].includes(current.alignment) ? current.alignment : "left",
+      image_position: ["right","left","background","none"].includes(current.image_position) ? current.image_position : "right",
+      image_url: current.image_url || "",
+      image_path: current.image_path || "",
+      image_alt: current.image_alt || "",
+      buttons: Array.isArray(current.buttons) ? current.buttons.map((button) => ({
+        id: button.id || crypto.randomUUID(),
+        text: button.text || "Botón",
+        url: button.url || "",
+        style: ["pink","blue","dark","light"].includes(button.style) ? button.style : "pink"
+      })) : []
+    };
+    return section.content;
+  }
+
+  function setLayoutLabels(custom = false) {
+    const select = $("#sectionInspectorForm").elements.layout;
+    const labels = custom
+      ? { grid: "Dos columnas", featured: "Destacada", compact: "Compacta", carousel: "Centrada" }
+      : { grid: "Cuadrícula", featured: "Destacado", compact: "Compacto", carousel: "Carrusel" };
+    [...select.options].forEach((option) => { option.textContent = labels[option.value] || option.textContent; });
+  }
+
+  function renderCustomSectionControls(section) {
+    const form = $("#sectionInspectorForm");
+    const content = normalizeCustomContent(section);
+    setLayoutLabels(true);
+    form.elements.custom_label.value = section.label || "Sección personalizada";
+    form.elements.custom_eyebrow.value = content.eyebrow;
+    form.elements.custom_body.value = content.body;
+    form.elements.custom_theme.value = content.theme;
+    form.elements.custom_alignment.value = content.alignment;
+    form.elements.custom_image_position.value = content.image_position;
+    form.elements.custom_image_alt.value = content.image_alt;
+    form.elements.custom_image.value = "";
+    $("#customUploadStatus").textContent = "";
+    $("#customImagePreview").innerHTML = content.image_url
+      ? `<img src="${safe(content.image_url)}" alt=""><span>Imagen actual</span>`
+      : '<span class="no-custom-image">Sin imagen</span>';
+    $("#removeCustomImage").hidden = !content.image_url;
+    $("#customButtonsEditor").innerHTML = content.buttons.length ? content.buttons.map((button, index) => `
+      <article class="custom-button-row" data-custom-button="${safe(button.id)}">
+        <div class="custom-button-row-head"><b>Botón ${index + 1}</b><div><button type="button" data-move-custom-button="up" title="Subir">↑</button><button type="button" data-move-custom-button="down" title="Bajar">↓</button><button type="button" data-remove-custom-button title="Eliminar">×</button></div></div>
+        <label>Texto<input data-custom-button-text maxlength="60" value="${safe(button.text)}"></label>
+        <label>Estilo<select data-custom-button-style><option value="pink"${button.style === "pink" ? " selected" : ""}>Rosa</option><option value="blue"${button.style === "blue" ? " selected" : ""}>Azul</option><option value="dark"${button.style === "dark" ? " selected" : ""}>Oscuro</option><option value="light"${button.style === "light" ? " selected" : ""}>Claro</option></select></label>
+        <label>Destino<input name="custom_button_${safe(button.id)}_url" data-custom-button-url value="${safe(button.url)}" maxlength="500"></label>
+      </article>`).join("") : '<div class="custom-buttons-empty">Esta sección todavía no tiene botones.</div>';
+    enhanceLinkInputs($("#customButtonsEditor"));
+  }
+
   function updateSectionFromInspector() {
     const form = $("#sectionInspectorForm");
     const section = sections.find((item) => item.section_key === form.elements.section_key.value);
@@ -363,10 +451,150 @@
       ["ticker_phrases","ticker_animation","ticker_speed","ticker_direction","ticker_color","ticker_separator"].forEach((name) => storeSettings[name] = form.elements[name].value);
       $("#tickerSpeedValue").textContent = `${form.elements.ticker_speed.value} segundos`;
     }
+    if (isCustomSection(section)) {
+      const content = normalizeCustomContent(section);
+      section.label = form.elements.custom_label.value.trim() || "Sección personalizada";
+      content.eyebrow = form.elements.custom_eyebrow.value;
+      content.body = form.elements.custom_body.value;
+      content.theme = form.elements.custom_theme.value;
+      content.alignment = form.elements.custom_alignment.value;
+      content.image_position = form.elements.custom_image_position.value;
+      content.image_alt = form.elements.custom_image_alt.value;
+      content.buttons = $$("[data-custom-button]", $("#customButtonsEditor")).map((row) => ({
+        id: row.dataset.customButton,
+        text: $("[data-custom-button-text]", row).value.trim() || "Botón",
+        url: $("[data-custom-button-url]", row).value.trim(),
+        style: $("[data-custom-button-style]", row).value
+      }));
+      $("#inspectorSectionName").textContent = section.label;
+    }
     $$('[data-setting-key]', form).forEach((input) => storeSettings[input.dataset.settingKey] = input.value);
     renderSections();
     applyPreviewSections();
     $("#sectionEditorStatus").textContent = "Cambios sin publicar";
+  }
+
+  function createCustomSection() {
+    if (!customSchemaReady) return notify("Ejecuta database_custom_sections.sql en Supabase antes de crear secciones.", true);
+    const id = crypto.randomUUID().replaceAll("-", "");
+    const section = {
+      section_key: `custom_${id}`,
+      label: "Nueva sección",
+      title: "NUEVA SECCIÓN",
+      subtitle: "Edita este texto desde el panel.",
+      enabled: true,
+      sort_order: 0,
+      layout: "grid",
+      section_type: "custom",
+      content: {
+        anchor_id: `seccion-${id.slice(0, 8)}`,
+        eyebrow: "SECCIÓN PERSONALIZADA",
+        body: "Agrega información, una imagen y los botones que necesites.",
+        theme: "dark",
+        alignment: "left",
+        image_position: "right",
+        image_url: "",
+        image_path: "",
+        image_alt: "",
+        buttons: []
+      }
+    };
+    const footerIndex = sections.findIndex((item) => item.section_key === "footer");
+    sections.splice(footerIndex >= 0 ? footerIndex : sections.length, 0, section);
+    selectedSectionKey = section.section_key;
+    renderSections();
+    selectSection(section.section_key);
+    applyPreviewSections();
+    $("#sectionEditorStatus").textContent = "Nueva sección sin publicar";
+    notify("Sección creada. Edítala y pulsa Publicar cambios.");
+  }
+
+  function selectedCustomSection() {
+    const section = sections.find((item) => item.section_key === selectedSectionKey);
+    return isCustomSection(section) ? section : null;
+  }
+
+  function addCustomButton() {
+    const section = selectedCustomSection();
+    if (!section) return;
+    updateSectionFromInspector();
+    const content = normalizeCustomContent(section);
+    content.buttons.push({ id: crypto.randomUUID(), text: "Nuevo botón", url: "#inicio", style: "pink" });
+    renderCustomSectionControls(section);
+    applyPreviewSections();
+    $("#sectionEditorStatus").textContent = "Botón nuevo sin publicar";
+  }
+
+  function changeCustomButton(buttonId, action) {
+    const section = selectedCustomSection();
+    if (!section) return;
+    updateSectionFromInspector();
+    const buttons = normalizeCustomContent(section).buttons;
+    const index = buttons.findIndex((button) => button.id === buttonId);
+    if (index < 0) return;
+    if (action === "remove") buttons.splice(index, 1);
+    if (action === "up" && index > 0) [buttons[index - 1], buttons[index]] = [buttons[index], buttons[index - 1]];
+    if (action === "down" && index < buttons.length - 1) [buttons[index + 1], buttons[index]] = [buttons[index], buttons[index + 1]];
+    renderCustomSectionControls(section);
+    applyPreviewSections();
+    $("#sectionEditorStatus").textContent = "Botones modificados sin publicar";
+  }
+
+  async function setCustomSectionImage(file) {
+    const section = selectedCustomSection();
+    if (!section || !file) return;
+    const status = $("#customUploadStatus");
+    status.textContent = "Subiendo imagen…";
+    try {
+      updateSectionFromInspector();
+      const content = normalizeCustomContent(section);
+      const previousPath = content.image_path;
+      const uploaded = await uploadImage(file, "sections");
+      if (previousPath) pendingMediaRemovals.add(previousPath);
+      content.image_url = uploaded.url;
+      content.image_path = uploaded.path;
+      if (content.image_position === "none") content.image_position = "right";
+      if (!content.image_alt) content.image_alt = section.title || "Imagen de Fantasmas Biker's Shop";
+      renderCustomSectionControls(section);
+      applyPreviewSections();
+      $("#customUploadStatus").textContent = "Imagen lista. Publica los cambios.";
+      $("#sectionEditorStatus").textContent = "Imagen nueva sin publicar";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  }
+
+  function removeCustomSectionImage() {
+    const section = selectedCustomSection();
+    if (!section) return;
+    updateSectionFromInspector();
+    const content = normalizeCustomContent(section);
+    if (content.image_path) pendingMediaRemovals.add(content.image_path);
+    content.image_url = "";
+    content.image_path = "";
+    content.image_position = "none";
+    renderCustomSectionControls(section);
+    applyPreviewSections();
+    $("#sectionEditorStatus").textContent = "Imagen retirada sin publicar";
+  }
+
+  function deleteCustomSection() {
+    const section = selectedCustomSection();
+    if (!section || !confirm(`¿Eliminar la sección “${section.label}”?`)) return;
+    const content = normalizeCustomContent(section);
+    if (content.image_path) pendingMediaRemovals.add(content.image_path);
+    deletedSectionKeys.add(section.section_key);
+    const index = sections.findIndex((item) => item.section_key === section.section_key);
+    sections.splice(index, 1);
+    selectedSectionKey = sections[Math.max(0, index - 1)]?.section_key || "";
+    renderSections();
+    applyPreviewSections();
+    if (selectedSectionKey) selectSection(selectedSectionKey, false);
+    else {
+      $("#sectionInspectorForm").hidden = true;
+      $("#inspectorEmpty").hidden = false;
+    }
+    $("#sectionEditorStatus").textContent = "Sección eliminada sin publicar";
   }
 
   function bindSectionDrag() {
@@ -407,19 +635,29 @@
       style.textContent = '[data-section-key]{cursor:pointer;transition:outline .15s}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}';
       doc.head.append(style);
     }
+    bindPreviewSectionClicks(doc);
+    applyPreviewSections();
+  }
+
+  function bindPreviewSectionClicks(doc) {
     doc.querySelectorAll("[data-section-key]").forEach((element) => {
+      if (element.dataset.builderClickBound === "true") return;
+      element.dataset.builderClickBound = "true";
       element.addEventListener("click", (event) => {
         event.preventDefault(); event.stopPropagation();
         selectSection(element.dataset.sectionKey, false);
       });
     });
-    applyPreviewSections();
   }
 
   function applyPreviewSections() {
     const doc = previewDocument();
     if (!doc) return;
-    sections.forEach((settings, index) => {
+    const previewSections = sections.map((settings, index) => ({ ...settings, sort_order: (index + 1) * 10 }));
+    const previewWindow = $("#sitePreview").contentWindow;
+    if (typeof previewWindow?.FANTASMAS_APPLY_SECTIONS === "function") previewWindow.FANTASMAS_APPLY_SECTIONS(previewSections);
+    else if (typeof previewWindow?.FANTASMAS_RENDER_CUSTOM_SECTIONS === "function") previewWindow.FANTASMAS_RENDER_CUSTOM_SECTIONS(previewSections);
+    previewSections.forEach((settings, index) => {
       const section = doc.querySelector(`[data-section-key="${settings.section_key}"]`);
       if (!section) return;
       section.style.order = String((index + 1) * 10);
@@ -431,6 +669,7 @@
       if (title) title.textContent = settings.title || "";
       if (subtitle) subtitle.textContent = settings.subtitle || "";
     });
+    bindPreviewSectionClicks(doc);
     applyPreviewSettings(doc);
     markPreviewSelection(false);
   }
@@ -528,26 +767,41 @@
   }
 
   async function saveSections() {
-    const payload = sections.map((section, index) => ({
-      section_key: section.section_key,
-      label: section.label,
-      title: section.title || "",
-      subtitle: section.subtitle || "",
-      layout: section.layout || "grid",
-      enabled: Boolean(section.enabled),
-      sort_order: (index + 1) * 10,
-      updated_at: new Date().toISOString()
-    }));
+    updateSectionFromInspector();
+    const payload = sections.map((section, index) => {
+      const base = {
+        section_key: section.section_key,
+        label: section.label,
+        title: section.title || "",
+        subtitle: section.subtitle || "",
+        layout: section.layout || "grid",
+        enabled: Boolean(section.enabled),
+        sort_order: (index + 1) * 10,
+        updated_at: new Date().toISOString()
+      };
+      return customSchemaReady ? {
+        ...base,
+        section_type: isCustomSection(section) ? "custom" : "system",
+        content: isCustomSection(section) ? normalizeCustomContent(section) : customContent(section)
+      } : base;
+    });
     $("#sectionEditorStatus").textContent = "Publicando…";
-    const [sectionResult, settingsResult] = await Promise.all([
+    const requests = [
       client.from("shop_sections").upsert(payload),
       client.from("shop_settings").upsert({ setting_key: "store_info", setting_value: storeSettings, updated_at: new Date().toISOString() })
-    ]);
-    const error = sectionResult.error || settingsResult.error;
+    ];
+    if (deletedSectionKeys.size) requests.push(client.from("shop_sections").delete().in("section_key", [...deletedSectionKeys]));
+    const results = await Promise.all(requests);
+    const error = results.find((result) => result.error)?.error;
     if (error) { $("#sectionEditorStatus").textContent = error.message; return notify(error.message, true); }
     sections = payload;
+    deletedSectionKeys.clear();
+    if (pendingMediaRemovals.size) {
+      await client.storage.from("shop-media").remove([...pendingMediaRemovals]);
+      pendingMediaRemovals.clear();
+    }
     $("#sectionEditorStatus").textContent = "Cambios publicados";
-    notify("La página pública fue actualizada.");
+    notify("La página pública y sus secciones fueron actualizadas.");
   }
 
   function fillCategoryOptions() {
@@ -656,6 +910,12 @@
     const row = event.target.closest(".section-row");
     if (row && !button) selectSection(row.dataset.sectionKey);
     if (!button) return;
+    if (button.id === "newSectionButton") createCustomSection();
+    if (button.id === "addCustomButton") addCustomButton();
+    if (button.id === "removeCustomImage") removeCustomSectionImage();
+    if (button.id === "deleteCustomSection") deleteCustomSection();
+    if (button.dataset.removeCustomButton !== undefined) changeCustomButton(button.closest("[data-custom-button]")?.dataset.customButton, "remove");
+    if (button.dataset.moveCustomButton) changeCustomButton(button.closest("[data-custom-button]")?.dataset.customButton, button.dataset.moveCustomButton);
     if (button.dataset.toggleSection) { const section = sections.find((item) => item.section_key === button.dataset.toggleSection); section.enabled = !section.enabled; renderSections(); selectSection(section.section_key, false); applyPreviewSections(); $("#sectionEditorStatus").textContent = "Cambios sin publicar"; }
     if (button.dataset.device) { $$(".device-button").forEach((item) => item.classList.toggle("active", item === button)); $("#builderCanvas").classList.toggle("mobile", button.dataset.device === "mobile"); }
     if (button.dataset.editCategory) { const item = categories.find((x) => x.id === button.dataset.editCategory); const form = $("#categoryForm"); form.elements.id.value = item.id; form.elements.icon.value = item.icon || "☠"; form.elements.name.value = item.name; form.elements.description.value = item.description || ""; form.elements.sort_order.value = item.sort_order; form.elements.active.checked = item.active; }
@@ -675,6 +935,7 @@
   $("#closeInspector").addEventListener("click", () => $("#sectionInspector").classList.remove("open"));
   $("#sectionInspectorForm").addEventListener("input", updateSectionFromInspector);
   $("#sectionInspectorForm").addEventListener("change", updateSectionFromInspector);
+  $("#sectionInspectorForm").addEventListener("change", (event) => { if (event.target.name === "custom_image" && event.target.files[0]) setCustomSectionImage(event.target.files[0]); });
   $("#saveSectionsButton").addEventListener("click", saveSections);
   $("#categoryForm").addEventListener("submit", saveCategory);
   $("#cancelCategory").addEventListener("click", resetCategoryForm);

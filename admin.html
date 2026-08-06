@@ -60,7 +60,7 @@
         <div class="editor-help"><b>Funciona como un Google Sites simplificado.</b><span>Arrastra bloques, selecciónalos para editar y revisa el resultado en vivo. La identidad gráfica siempre se conserva.</span></div>
         <div class="builder-toolbar"><div><b>Vista previa</b><button class="device-button active" type="button" data-device="desktop" title="Computadora">▰ Escritorio</button><button class="device-button" type="button" data-device="mobile" title="Celular">▯ Celular</button></div><span id="sectionEditorStatus">Cargando página…</span></div>
         <div class="site-builder">
-          <aside class="builder-structure"><div class="builder-panel-title"><b>Secciones</b><small>Arrastra para ordenar</small></div><div class="section-editor" id="sectionEditor"></div></aside>
+          <aside class="builder-structure"><div class="builder-panel-title structure-title"><div><b>Secciones</b><small>Arrastra para ordenar</small></div><button type="button" id="newSectionButton">+ Nueva</button></div><div class="section-editor" id="sectionEditor"></div></aside>
           <div class="builder-canvas" id="builderCanvas"><iframe id="sitePreview" src="index.html?preview=1" title="Vista previa de la página"></iframe></div>
           <aside class="builder-inspector" id="sectionInspector">
             <div class="builder-panel-title inspector-title"><div><b>Editar bloque</b><small id="inspectorSectionName">Selecciona una sección</small></div><button type="button" id="closeInspector" aria-label="Cerrar propiedades">×</button></div>
@@ -96,8 +96,25 @@
                 <label>Separador<input name="ticker_separator" maxlength="4" value="✦"></label>
               </div>
               <div class="inspector-group special-controls" id="extraSectionControls" hidden></div>
+              <div class="inspector-group custom-section-controls" id="customSectionControls" hidden>
+                <p class="control-heading">Sección personalizada</p>
+                <label>Nombre dentro del editor<input name="custom_label" maxlength="80"></label>
+                <label>Etiqueta superior<input name="custom_eyebrow" maxlength="100"></label>
+                <label>Texto adicional<textarea name="custom_body" rows="5" maxlength="1500"></textarea></label>
+                <label>Tema oficial<select name="custom_theme"><option value="dark">Negro</option><option value="blue">Azul</option><option value="pink">Rosa</option><option value="gradient">Azul y rosa</option></select></label>
+                <label>Alineación<select name="custom_alignment"><option value="left">Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></label>
+                <label>Posición de imagen<select name="custom_image_position"><option value="right">A la derecha</option><option value="left">A la izquierda</option><option value="background">Como fondo</option><option value="none">Sin imagen</option></select></label>
+                <label>Descripción de la imagen<input name="custom_image_alt" maxlength="160" placeholder="Describe la fotografía"></label>
+                <label class="custom-image-upload">Subir o reemplazar imagen<input name="custom_image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
+                <div class="custom-image-preview" id="customImagePreview"></div>
+                <button class="secondary custom-control-button" type="button" id="removeCustomImage">Quitar imagen</button>
+                <small class="custom-upload-status" id="customUploadStatus"></small>
+                <div class="custom-buttons-heading"><div><b>Botones de la sección</b><small>Puedes agregar varios destinos.</small></div><button type="button" id="addCustomButton">+ Botón</button></div>
+                <div class="custom-buttons-editor" id="customButtonsEditor"></div>
+                <button class="danger-button" type="button" id="deleteCustomSection">Eliminar esta sección</button>
+              </div>
               <label class="inspector-toggle"><input name="enabled" type="checkbox"> Mostrar este bloque</label>
-              <p>Los productos, promociones, rifas y eventos se editan desde sus apartados del menú.</p>
+              <p id="sectionInspectorHint">Los productos, promociones, rifas y eventos se editan desde sus apartados del menú.</p>
             </form>
           </aside>
         </div>

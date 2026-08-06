@@ -12,8 +12,16 @@ create table if not exists public.shop_sections (
   enabled boolean not null default true,
   sort_order integer not null default 0,
   layout text not null default 'grid' check (layout in ('grid','featured','compact','carousel')),
+  section_type text not null default 'system',
+  content jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.shop_sections add column if not exists section_type text not null default 'system';
+alter table public.shop_sections add column if not exists content jsonb not null default '{}'::jsonb;
+alter table public.shop_sections add column if not exists created_at timestamptz not null default now();
+create index if not exists shop_sections_type_order_idx on public.shop_sections(section_type, sort_order);
 
 create table if not exists public.shop_categories (
   id uuid primary key default gen_random_uuid(),
@@ -115,7 +123,7 @@ on conflict (setting_key) do nothing;
 update public.shop_settings
 set setting_value = jsonb_build_object(
   'announcement','Primer aniversario · 24 de agosto · 11:00 a 19:00 h',
-  'ticker_phrases','ANIVERSARIO 2026\nPREMIOS Y PROMOCIONES\nCOMUNIDAD BIKER\nFANTASMAS BIKER''S SHOP',
+  'ticker_phrases',E'ANIVERSARIO 2026\nPREMIOS Y PROMOCIONES\nCOMUNIDAD BIKER\nFANTASMAS BIKER''S SHOP',
   'ticker_animation','scroll','ticker_speed','22','ticker_direction','left',
   'ticker_color','blue','ticker_separator','✦',
   'hero_eyebrow','SITIO OFICIAL · CD. AZTECA, ECATEPEC',
