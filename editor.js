@@ -282,18 +282,31 @@
     const ticker = doc.querySelector("#anuncioAdministrable");
     const track = ticker?.querySelector(".ticker-track");
     if (!ticker || !track) return;
-    const phrases = String(storeSettings.ticker_phrases || storeSettings.announcement || "FANTASMAS BIKER'S SHOP").split(/\n|\|/).map((text) => text.trim()).filter(Boolean);
+    const phrases = String(storeSettings.ticker_phrases || storeSettings.announcement || "FANTASMAS BIKER'S SHOP").split(/\r?\n|\\n|\|/).map((text) => text.trim()).filter(Boolean);
+    if (!phrases.length) phrases.push("FANTASMAS BIKER'S SHOP");
     const animation = storeSettings.ticker_animation || "scroll";
     const separator = storeSettings.ticker_separator || "✦";
     ticker.classList.remove("ticker-scroll","ticker-rotate","ticker-pulse","ticker-static","ticker-left","ticker-right","ticker-blue","ticker-pink","ticker-dark","ticker-gradient");
     ticker.classList.add(`ticker-${animation}`, `ticker-${storeSettings.ticker_direction || "left"}`, `ticker-${storeSettings.ticker_color || "blue"}`);
     ticker.style.setProperty("--ticker-duration", `${storeSettings.ticker_speed || 22}s`);
-    track.innerHTML = "";
-    const copies = animation === "scroll" ? 2 : 1;
-    for (let copy = 0; copy < copies; copy += 1) phrases.forEach((phrase, index) => {
-      const span = doc.createElement("span"); span.className = "ticker-item"; span.textContent = phrase; track.append(span);
-      if (index < phrases.length - 1 || copy < copies - 1) { const icon = doc.createElement("i"); icon.textContent = separator; track.append(icon); }
-    });
+    const fillTrack = (copies) => {
+      track.innerHTML = "";
+      for (let copy = 0; copy < copies; copy += 1) {
+        const group = doc.createElement("span"); group.className = "ticker-group";
+        phrases.forEach((phrase) => { const span = doc.createElement("span"); span.className = "ticker-item"; span.textContent = phrase; group.append(span); const icon = doc.createElement("i"); icon.textContent = separator; group.append(icon); });
+        track.append(group);
+      }
+    };
+    if (animation === "scroll") {
+      fillTrack(1);
+      const groupWidth = Math.max(1, track.firstElementChild?.getBoundingClientRect().width || 1);
+      const copies = Math.max(2, Math.ceil((ticker.clientWidth * 2) / groupWidth));
+      fillTrack(copies);
+      ticker.style.setProperty("--ticker-shift", `${-100 / copies}%`);
+    } else {
+      ticker.style.removeProperty("--ticker-shift");
+      fillTrack(1);
+    }
   }
 
   function updateCountdownPreview(doc) {

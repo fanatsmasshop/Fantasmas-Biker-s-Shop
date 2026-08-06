@@ -1,0 +1,20 @@
+PARCHE DE LA FRANJA ANIMADA — FANTASMAS BIKER'S SHOP
+
+1. Sube a la raíz de tu repositorio de GitHub estos tres archivos y reemplaza los anteriores:
+   - public-data.js
+   - editor.js
+   - editor-public.css
+
+2. Espera a que Cloudflare Pages termine el nuevo despliegue.
+
+3. Abre la tienda y presiona Ctrl + F5 para evitar que el navegador conserve los archivos anteriores.
+
+No reemplaces supabase-config.js.
+No necesitas ejecutar otra vez database_editor.sql.
+
+Correcciones incluidas:
+- La franja ya no toma la altura del diseño compacto.
+- Las frases guardadas con saltos de línea se separan correctamente.
+- El texto animado se repite según el ancho de la pantalla.
+- El movimiento ya no deja huecos ni pega un salto al reiniciarse.
+- La vista previa del constructor y la página pública muestran el mismo resultado.

@@ -137,7 +137,8 @@
     const track = ticker?.querySelector(".ticker-track");
     if (!ticker || !track) return;
     clearInterval(tickerTimer);
-    const phrases = String(value.ticker_phrases || value.announcement || "FANTASMAS BIKER'S SHOP").split(/\n|\|/).map((text) => text.trim()).filter(Boolean);
+    const phrases = String(value.ticker_phrases || value.announcement || "FANTASMAS BIKER'S SHOP").split(/\r?\n|\\n|\|/).map((text) => text.trim()).filter(Boolean);
+    if (!phrases.length) phrases.push("FANTASMAS BIKER'S SHOP");
     const animation = value.ticker_animation || "scroll";
     const separator = value.ticker_separator || "✦";
     const speed = Math.max(5, Math.min(60, Number(value.ticker_speed) || 22));
@@ -147,17 +148,25 @@
 
     const fillTrack = (items, copies = 1) => {
       track.innerHTML = "";
-      for (let copy = 0; copy < copies; copy += 1) items.forEach((phrase, index) => {
-        const span = document.createElement("span"); span.className = "ticker-item"; span.textContent = phrase; track.append(span);
-        if (index < items.length - 1 || copy < copies - 1) { const icon = document.createElement("i"); icon.textContent = separator; track.append(icon); }
-      });
+      for (let copy = 0; copy < copies; copy += 1) {
+        const group = document.createElement("span"); group.className = "ticker-group";
+        items.forEach((phrase) => { const span = document.createElement("span"); span.className = "ticker-item"; span.textContent = phrase; group.append(span); const icon = document.createElement("i"); icon.textContent = separator; group.append(icon); });
+        track.append(group);
+      }
     };
 
     if (animation === "rotate") {
       let current = 0; fillTrack([phrases[current] || "FANTASMAS BIKER'S SHOP"]);
       if (!builderPreview) tickerTimer = setInterval(() => { current = (current + 1) % phrases.length; fillTrack([phrases[current]]); }, Math.max(2000, speed * 200));
+    } else if (animation === "scroll") {
+      fillTrack(phrases, 1);
+      const groupWidth = Math.max(1, track.firstElementChild?.getBoundingClientRect().width || 1);
+      const copies = Math.max(2, Math.ceil((ticker.clientWidth * 2) / groupWidth));
+      fillTrack(phrases, copies);
+      ticker.style.setProperty("--ticker-shift", `${-100 / copies}%`);
     } else {
-      fillTrack(phrases, animation === "scroll" ? 2 : 1);
+      ticker.style.removeProperty("--ticker-shift");
+      fillTrack(phrases, 1);
     }
   }
 
