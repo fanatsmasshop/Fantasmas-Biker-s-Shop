@@ -1,0 +1,20 @@
+FANTASMAS BIKER'S SHOP — SITIO OFICIAL
+
+ARCHIVOS
+- index.html: contenido principal.
+- styles.css: diseño, colores y adaptación móvil.
+- script.js: rifas, botones de WhatsApp y menú móvil.
+
+PARA SUBIR A GITHUB Y CLOUDFLARE PAGES
+1. Sube los tres archivos directamente a la raíz del repositorio.
+2. En Cloudflare Pages conecta el repositorio.
+3. Framework preset: None.
+4. Build command: dejar vacío.
+5. Build output directory: /
+
+EDITAR RIFAS
+Abre script.js. Al inicio encontrarás la lista "rifas". Ahí puedes modificar precio, cantidad de números, premio principal y secundarios.
+
+VERSIÓN
+Primera versión oficial independiente de Fantasmas Biker's Shop.
+No pertenece a LN Studio ni a Aliados Fantasma.
