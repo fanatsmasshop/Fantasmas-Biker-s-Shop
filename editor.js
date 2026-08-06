@@ -11,9 +11,51 @@
   let categories = [];
   let raffles = [];
   let events = [];
+  let storeSettings = {};
   let selectedSectionKey = "";
   let initialized = false;
   let draggedKey = "";
+  const fixedSections = new Set(["header", "footer"]);
+  const specialSections = new Set(["header", "hero", "announcement", "footer"]);
+  const sectionFields = {
+    header: [
+      ["nav_raffles_text","Texto: Rifas"],["nav_raffles_url","Enlace: Rifas","url"],
+      ["nav_store_text","Texto: Tienda"],["nav_store_url","Enlace: Tienda","url"],
+      ["nav_rewards_text","Texto: Beneficios"],["nav_rewards_url","Enlace: Beneficios","url"],
+      ["nav_allies_text","Texto: Aliados"],["nav_allies_url","Enlace: Aliados","url"],
+      ["nav_contact_text","Texto: Contacto"],["nav_contact_url","Enlace: Contacto","url"],
+      ["header_cta_text","Texto del botón"],["header_cta_url","Enlace del botón","url"]
+    ],
+    promotions: [["promotions_eyebrow","Etiqueta superior"]],
+    raffles: [
+      ["raffles_eyebrow","Etiqueta superior"],["raffles_steps_title","Título de instrucciones"],
+      ["raffles_step_1","Paso 1"],["raffles_step_2","Paso 2"],["raffles_step_3","Paso 3"],["raffles_step_4","Paso 4"],
+      ["raffles_note","Nota inferior","textarea"]
+    ],
+    anniversary: [
+      ["anniversary_day","Día"],["anniversary_date_label","Mes y año"],["anniversary_eyebrow","Etiqueta superior"],
+      ["anniversary_cta_text","Texto del botón"],["anniversary_cta_url","Enlace del botón","url"]
+    ],
+    catalog_intro: [["catalog_eyebrow","Etiqueta superior"]],
+    products: [["products_eyebrow","Etiqueta superior"],["products_search_placeholder","Texto del buscador"]],
+    events: [["events_eyebrow","Etiqueta superior"]],
+    rewards: [
+      ["rewards_eyebrow","Etiqueta superior"],["rewards_count","Cantidad de sellos"],["rewards_title","Premio de sellos"],
+      ["rewards_text","Descripción del premio","textarea"],["delivery_title","Título de entregas"],["delivery_text","Información de entregas","textarea"]
+    ],
+    allies: [["allies_eyebrow","Etiqueta superior"],["allies_notice","Aviso inferior"]],
+    contact: [
+      ["contact_eyebrow","Etiqueta superior"],["address","Dirección","textarea"],
+      ["whatsapp","WhatsApp principal","tel"],["catalog_phone","Teléfono de catálogo","tel"],["design_phone","Diseño e impresión","tel"],
+      ["contact_map_text","Texto del botón de mapa"],["maps_url","Enlace de Google Maps","url"],
+      ["contact_whatsapp_text","Texto del botón de WhatsApp"],
+      ["instagram_text","Usuario de Instagram"],["instagram_url","Enlace de Instagram","url"],
+      ["tiktok_text","Usuario de TikTok"],["tiktok_url","Enlace de TikTok","url"],
+      ["youtube_text","Canal de YouTube"],["youtube_url","Enlace de YouTube","url"],
+      ["links_url","Enlace general / Linktree","url"]
+    ],
+    footer: [["footer_tagline","Frase del pie"],["footer_copyright","Texto legal"]]
+  };
 
   function notify(message, error = false) {
     const toast = $("#toast");
@@ -37,7 +79,8 @@
       client.from("shop_sections").select("*").order("sort_order"),
       client.from("shop_categories").select("*").order("sort_order").order("name"),
       client.from("shop_raffles").select("*").order("sort_order").order("price"),
-      client.from("shop_events").select("*").order("event_date", { ascending: true })
+      client.from("shop_events").select("*").order("event_date", { ascending: true }),
+      client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle()
     ]);
     const missing = results.find((result) => result.error);
     if (missing) {
@@ -49,6 +92,7 @@
     categories = results[1].data || [];
     raffles = results[2].data || [];
     events = results[3].data || [];
+    storeSettings = results[4].data?.setting_value || {};
     renderSections();
     renderCategories();
     renderRaffles();
@@ -67,8 +111,8 @@
       return;
     }
     container.innerHTML = sections.map((section) => `
-      <article class="section-row${section.section_key === selectedSectionKey ? " selected" : ""}" data-section-key="${safe(section.section_key)}" draggable="true">
-        <span class="drag-handle" title="Arrastrar">⠿</span>
+      <article class="section-row${section.section_key === selectedSectionKey ? " selected" : ""}" data-section-key="${safe(section.section_key)}" draggable="${fixedSections.has(section.section_key) ? "false" : "true"}">
+        <span class="drag-handle" title="${fixedSections.has(section.section_key) ? "Posición fija" : "Arrastrar"}">${fixedSections.has(section.section_key) ? "🔒" : "⠿"}</span>
         <div class="section-identity"><b>${safe(section.label)}</b><small>${safe(section.enabled ? section.layout : "OCULTA")}</small></div>
         <button class="section-visible${section.enabled ? "" : " off"}" type="button" data-toggle-section="${safe(section.section_key)}" title="${section.enabled ? "Ocultar" : "Mostrar"}">${section.enabled ? "●" : "○"}</button>
       </article>`).join("");
@@ -88,19 +132,56 @@
     form.elements.subtitle.value = section.subtitle || "";
     form.elements.layout.value = section.layout || "grid";
     form.elements.enabled.checked = section.enabled;
+    $("#genericSectionControls").hidden = specialSections.has(key);
+    $("#heroSectionControls").hidden = key !== "hero";
+    $("#tickerSectionControls").hidden = key !== "announcement";
+    renderExtraControls(key);
+    if (key === "hero") {
+      ["hero_eyebrow","hero_title","hero_highlight","hero_intro","main_cta_text","main_cta_url","catalog_cta_text","catalog_cta_url"].forEach((name) => form.elements[name].value = storeSettings[name] || "");
+      form.elements.event_datetime.value = localDate(storeSettings.event_datetime);
+      form.elements.countdown_enabled.checked = String(storeSettings.countdown_enabled ?? "true") !== "false";
+    }
+    if (key === "announcement") {
+      ["ticker_phrases","ticker_animation","ticker_direction","ticker_color","ticker_separator"].forEach((name) => form.elements[name].value = storeSettings[name] || form.elements[name].value);
+      form.elements.ticker_speed.value = storeSettings.ticker_speed || 22;
+      $("#tickerSpeedValue").textContent = `${form.elements.ticker_speed.value} segundos`;
+    }
     $("#inspectorSectionName").textContent = section.label;
     $("#sectionInspector").classList.add("open");
     markPreviewSelection(scrollPreview);
+  }
+
+  function renderExtraControls(key) {
+    const target = $("#extraSectionControls");
+    const fields = sectionFields[key] || [];
+    target.hidden = fields.length === 0;
+    target.innerHTML = fields.length ? `<p class="control-heading">Más contenido editable</p>${fields.map(([name, label, type = "text"]) => {
+      const value = safe(storeSettings[name] || "");
+      if (type === "textarea") return `<label>${safe(label)}<textarea name="${safe(name)}" data-setting-key="${safe(name)}" rows="4" maxlength="800">${value}</textarea></label>`;
+      return `<label>${safe(label)}<input name="${safe(name)}" data-setting-key="${safe(name)}" type="${type}" value="${value}" maxlength="400"></label>`;
+    }).join("")}` : "";
   }
 
   function updateSectionFromInspector() {
     const form = $("#sectionInspectorForm");
     const section = sections.find((item) => item.section_key === form.elements.section_key.value);
     if (!section) return;
-    section.title = form.elements.title.value;
-    section.subtitle = form.elements.subtitle.value;
-    section.layout = form.elements.layout.value;
+    if (!specialSections.has(section.section_key)) {
+      section.title = form.elements.title.value;
+      section.subtitle = form.elements.subtitle.value;
+      section.layout = form.elements.layout.value;
+    }
     section.enabled = form.elements.enabled.checked;
+    if (section.section_key === "hero") {
+      ["hero_eyebrow","hero_title","hero_highlight","hero_intro","main_cta_text","main_cta_url","catalog_cta_text","catalog_cta_url"].forEach((name) => storeSettings[name] = form.elements[name].value);
+      storeSettings.event_datetime = form.elements.event_datetime.value;
+      storeSettings.countdown_enabled = String(form.elements.countdown_enabled.checked);
+    }
+    if (section.section_key === "announcement") {
+      ["ticker_phrases","ticker_animation","ticker_speed","ticker_direction","ticker_color","ticker_separator"].forEach((name) => storeSettings[name] = form.elements[name].value);
+      $("#tickerSpeedValue").textContent = `${form.elements.ticker_speed.value} segundos`;
+    }
+    $$('[data-setting-key]', form).forEach((input) => storeSettings[input.dataset.settingKey] = input.value);
     renderSections();
     applyPreviewSections();
     $("#sectionEditorStatus").textContent = "Cambios sin publicar";
@@ -108,17 +189,20 @@
 
   function bindSectionDrag() {
     $$(".section-row", $("#sectionEditor")).forEach((row) => {
-      row.addEventListener("dragstart", () => { draggedKey = row.dataset.sectionKey; row.classList.add("dragging"); });
+      row.addEventListener("dragstart", (event) => { if (fixedSections.has(row.dataset.sectionKey)) { event.preventDefault(); return; } draggedKey = row.dataset.sectionKey; row.classList.add("dragging"); });
       row.addEventListener("dragend", () => { draggedKey = ""; row.classList.remove("dragging"); $$(".section-row").forEach((item) => item.classList.remove("drop-target")); });
-      row.addEventListener("dragover", (event) => { event.preventDefault(); if (draggedKey !== row.dataset.sectionKey) row.classList.add("drop-target"); });
+      row.addEventListener("dragover", (event) => { if (fixedSections.has(row.dataset.sectionKey)) return; event.preventDefault(); if (draggedKey !== row.dataset.sectionKey) row.classList.add("drop-target"); });
       row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
       row.addEventListener("drop", (event) => {
         event.preventDefault();
+        if (fixedSections.has(row.dataset.sectionKey)) return;
         const from = sections.findIndex((item) => item.section_key === draggedKey);
-        const to = sections.findIndex((item) => item.section_key === row.dataset.sectionKey);
-        if (from < 0 || to < 0 || from === to) return;
+        const originalTarget = sections.findIndex((item) => item.section_key === row.dataset.sectionKey);
+        if (from < 0 || originalTarget < 0 || from === originalTarget) return;
         const [moved] = sections.splice(from, 1);
-        sections.splice(to, 0, moved);
+        const target = sections.findIndex((item) => item.section_key === row.dataset.sectionKey);
+        const after = event.clientY > row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+        sections.splice(target + (after ? 1 : 0), 0, moved);
         renderSections(); applyPreviewSections();
         $("#sectionEditorStatus").textContent = "Nuevo orden sin publicar";
       });
@@ -132,6 +216,9 @@
   function preparePreview() {
     const doc = previewDocument();
     if (!doc) return;
+    const previewWindow = $("#sitePreview").contentWindow;
+    if (!previewWindow.FANTASMAS_SETTINGS_LOADED) previewWindow.addEventListener("fantasmas:settings-ready", () => applyPreviewSections(), { once: true });
+    if (previewWindow.FANTASMAS_SECTIONS_READY?.then) previewWindow.FANTASMAS_SECTIONS_READY.then(() => applyPreviewSections());
     if (!doc.querySelector("#fantasmasBuilderStyle")) {
       const style = doc.createElement("style");
       style.id = "fantasmasBuilderStyle";
@@ -162,7 +249,62 @@
       if (title) title.textContent = settings.title || "";
       if (subtitle) subtitle.textContent = settings.subtitle || "";
     });
+    applyPreviewSettings(doc);
     markPreviewSelection(false);
+  }
+
+  function applyPreviewSettings(doc) {
+    if (!doc) return;
+    const previewWindow = $("#sitePreview").contentWindow;
+    if (typeof previewWindow?.FANTASMAS_APPLY_PUBLIC_SETTINGS === "function") {
+      previewWindow.FANTASMAS_APPLY_PUBLIC_SETTINGS(storeSettings);
+      return;
+    }
+    doc.querySelectorAll("[data-setting-text]").forEach((element) => {
+      const key = element.dataset.settingText;
+      if (Object.prototype.hasOwnProperty.call(storeSettings, key)) element.textContent = storeSettings[key] || "";
+    });
+    doc.querySelectorAll("[data-setting-href]").forEach((element) => {
+      const key = element.dataset.settingHref;
+      if (storeSettings[key]) element.href = storeSettings[key]; else element.removeAttribute("href");
+    });
+    doc.querySelectorAll("[data-setting-placeholder]").forEach((element) => {
+      const key = element.dataset.settingPlaceholder;
+      if (Object.prototype.hasOwnProperty.call(storeSettings, key)) element.placeholder = storeSettings[key] || "";
+    });
+    const phoneValues = [["#storeWhatsapp","whatsapp"],["#storeCatalogPhone","catalog_phone"],["#storeDesignPhone","design_phone"]];
+    phoneValues.forEach(([selector, key]) => { const element = doc.querySelector(selector); if (element && storeSettings[key]) element.textContent = storeSettings[key]; });
+    renderTickerPreview(doc);
+    updateCountdownPreview(doc);
+  }
+
+  function renderTickerPreview(doc) {
+    const ticker = doc.querySelector("#anuncioAdministrable");
+    const track = ticker?.querySelector(".ticker-track");
+    if (!ticker || !track) return;
+    const phrases = String(storeSettings.ticker_phrases || storeSettings.announcement || "FANTASMAS BIKER'S SHOP").split(/\n|\|/).map((text) => text.trim()).filter(Boolean);
+    const animation = storeSettings.ticker_animation || "scroll";
+    const separator = storeSettings.ticker_separator || "✦";
+    ticker.classList.remove("ticker-scroll","ticker-rotate","ticker-pulse","ticker-static","ticker-left","ticker-right","ticker-blue","ticker-pink","ticker-dark","ticker-gradient");
+    ticker.classList.add(`ticker-${animation}`, `ticker-${storeSettings.ticker_direction || "left"}`, `ticker-${storeSettings.ticker_color || "blue"}`);
+    ticker.style.setProperty("--ticker-duration", `${storeSettings.ticker_speed || 22}s`);
+    track.innerHTML = "";
+    const copies = animation === "scroll" ? 2 : 1;
+    for (let copy = 0; copy < copies; copy += 1) phrases.forEach((phrase, index) => {
+      const span = doc.createElement("span"); span.className = "ticker-item"; span.textContent = phrase; track.append(span);
+      if (index < phrases.length - 1 || copy < copies - 1) { const icon = doc.createElement("i"); icon.textContent = separator; track.append(icon); }
+    });
+  }
+
+  function updateCountdownPreview(doc) {
+    const countdown = doc.querySelector("#countdown");
+    if (!countdown) return;
+    countdown.hidden = String(storeSettings.countdown_enabled ?? "true") === "false";
+    let source = storeSettings.event_datetime || "2026-08-24T11:00:00-06:00";
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(source)) source += ":00-06:00";
+    const difference = Math.max(0, new Date(source).getTime() - Date.now());
+    const values = { countdownDays: Math.floor(difference / 86400000), countdownHours: Math.floor(difference / 3600000) % 24, countdownMinutes: Math.floor(difference / 60000) % 60, countdownSeconds: Math.floor(difference / 1000) % 60 };
+    Object.entries(values).forEach(([id, value]) => { const element = doc.getElementById(id); if (element) element.textContent = String(value).padStart(2, "0"); });
   }
 
   function markPreviewSelection(scroll = false) {
@@ -188,7 +330,11 @@
       updated_at: new Date().toISOString()
     }));
     $("#sectionEditorStatus").textContent = "Publicando…";
-    const { error } = await client.from("shop_sections").upsert(payload);
+    const [sectionResult, settingsResult] = await Promise.all([
+      client.from("shop_sections").upsert(payload),
+      client.from("shop_settings").upsert({ setting_key: "store_info", setting_value: storeSettings, updated_at: new Date().toISOString() })
+    ]);
+    const error = sectionResult.error || settingsResult.error;
     if (error) { $("#sectionEditorStatus").textContent = error.message; return notify(error.message, true); }
     sections = payload;
     $("#sectionEditorStatus").textContent = "Cambios publicados";

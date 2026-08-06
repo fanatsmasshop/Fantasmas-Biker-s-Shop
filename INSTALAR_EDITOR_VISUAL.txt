@@ -1,5 +1,5 @@
-FANTASMAS BIKER'S SHOP — EDITOR VISUAL TIPO GOOGLE SITES
-=========================================================
+FANTASMAS BIKER'S SHOP — CONSTRUCTOR VISUAL COMPLETO V3
+========================================================
 
 IMPORTANTE
 No reemplaces supabase-config.js. Tu Project URL y tu Publishable key actuales
@@ -8,7 +8,8 @@ se conservan tal como están.
 PASO 1 — ACTUALIZAR SUPABASE
 1. Abre tu proyecto de Supabase.
 2. Entra a SQL Editor.
-3. Abre el archivo database_editor.sql incluido en este paquete.
+3. Abre el archivo database_editor.sql incluido en este paquete. Ejecútalo
+   nuevamente aunque ya hubieras instalado la versión anterior del editor.
 4. Copia todo su contenido, pégalo en una consulta nueva y presiona Run.
 5. Debe terminar sin errores. Este archivo se puede ejecutar nuevamente si
    fuera necesario.
@@ -31,6 +32,14 @@ QUÉ PODRÁS HACER
 - Seleccionar una sección y cambiar título, descripción y presentación.
 - Mostrar u ocultar bloques.
 - Revisar vista de escritorio y celular antes de publicar.
+- Editar encabezado, menú, enlaces y botón principal.
+- Editar la portada y sus botones.
+- Configurar fecha y hora de una cuenta regresiva real.
+- Franja de anuncios con varias frases editables.
+- Animación continua, rotativa, de pulso o sin animación.
+- Velocidad, dirección, separador y color oficial de la franja.
+- Editar pasos de las rifas, aniversario, Rewards, entregas y Aliados.
+- Editar contacto, redes sociales y pie de página.
 - Administrar productos y sus fotografías.
 - Administrar categorías del catálogo.
 - Administrar promociones y sus fotografías.
@@ -54,4 +63,4 @@ ARCHIVOS INCLUIDOS
 - editor.css
 - editor-public.css
 - database_editor.sql
-
+- admin.js

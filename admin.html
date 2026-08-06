@@ -67,9 +67,35 @@
             <div class="inspector-empty" id="inspectorEmpty">Selecciona un bloque de la lista o directamente en la vista previa.</div>
             <form id="sectionInspectorForm" hidden>
               <input type="hidden" name="section_key">
-              <label>Título<input name="title" maxlength="140"></label>
-              <label>Descripción<textarea name="subtitle" rows="5" maxlength="500"></textarea></label>
-              <label>Presentación<select name="layout"><option value="grid">Cuadrícula</option><option value="featured">Destacado</option><option value="compact">Compacto</option><option value="carousel">Carrusel</option></select></label>
+              <div class="inspector-group" id="genericSectionControls">
+                <label>Título<input name="title" maxlength="140"></label>
+                <label>Descripción<textarea name="subtitle" rows="5" maxlength="500"></textarea></label>
+                <label>Presentación<select name="layout"><option value="grid">Cuadrícula</option><option value="featured">Destacado</option><option value="compact">Compacto</option><option value="carousel">Carrusel</option></select></label>
+              </div>
+              <div class="inspector-group special-controls" id="heroSectionControls" hidden>
+                <p class="control-heading">Contenido de la portada</p>
+                <label>Frase superior<input name="hero_eyebrow" maxlength="100"></label>
+                <label>Título<input name="hero_title" maxlength="80"></label>
+                <label>Texto destacado<input name="hero_highlight" maxlength="80"></label>
+                <label>Introducción<textarea name="hero_intro" rows="4" maxlength="500"></textarea></label>
+                <label>Botón principal<input name="main_cta_text" maxlength="50"></label>
+                <label>Enlace principal<input name="main_cta_url" maxlength="300"></label>
+                <label>Botón secundario<input name="catalog_cta_text" maxlength="50"></label>
+                <label>Enlace secundario<input name="catalog_cta_url" maxlength="300"></label>
+                <p class="control-heading">Cuenta regresiva</p>
+                <label>Fecha y hora del evento<input name="event_datetime" type="datetime-local"></label>
+                <label class="inspector-toggle"><input name="countdown_enabled" type="checkbox"> Mostrar cuenta regresiva</label>
+              </div>
+              <div class="inspector-group special-controls" id="tickerSectionControls" hidden>
+                <p class="control-heading">Franja animada</p>
+                <label>Frases, una por línea<textarea name="ticker_phrases" rows="7" maxlength="1000"></textarea></label>
+                <label>Animación<select name="ticker_animation"><option value="scroll">Movimiento continuo</option><option value="rotate">Cambiar una por una</option><option value="pulse">Pulso llamativo</option><option value="static">Sin animación</option></select></label>
+                <label>Velocidad<input name="ticker_speed" type="range" min="5" max="60" step="1"><output id="tickerSpeedValue">22 segundos</output></label>
+                <label>Dirección<select name="ticker_direction"><option value="left">Hacia la izquierda</option><option value="right">Hacia la derecha</option></select></label>
+                <label>Color oficial<select name="ticker_color"><option value="blue">Azul</option><option value="pink">Rosa</option><option value="dark">Negro</option><option value="gradient">Azul y rosa</option></select></label>
+                <label>Separador<input name="ticker_separator" maxlength="4" value="✦"></label>
+              </div>
+              <div class="inspector-group special-controls" id="extraSectionControls" hidden></div>
               <label class="inspector-toggle"><input name="enabled" type="checkbox"> Mostrar este bloque</label>
               <p>Los productos, promociones, rifas y eventos se editan desde sus apartados del menú.</p>
             </form>

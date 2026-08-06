@@ -68,6 +68,9 @@ create table if not exists public.shop_events (
 
 insert into public.shop_sections (section_key,label,title,subtitle,enabled,sort_order,layout)
 values
+  ('header','Encabezado y menú','MENÚ PRINCIPAL','Navegación y acceso rápido.',true,-10,'compact'),
+  ('hero','Portada','RODAMOS JUNTOS.','Accesorios biker, artículos exclusivos y personalización con carácter.',true,0,'featured'),
+  ('announcement','Franja animada','ANUNCIOS DE LA TIENDA','Frases destacadas y avisos rápidos.',true,5,'compact'),
   ('promotions','Promociones','PROMOCIONES ACTIVAS','Promociones publicadas directamente por Fantasmas Biker''s Shop.',true,10,'featured'),
   ('raffles','Rifas','ELIGE TU NIVEL. CUATRO GANADORES.','Tres premios secundarios y un premio principal por rifa.',true,20,'grid'),
   ('anniversary','Aniversario','NUESTRO ANIVERSARIO SE VIVE EN LA TIENDA.','Promociones, rifas y sorpresas en nuestro evento.',true,30,'featured'),
@@ -76,7 +79,8 @@ values
   ('events','Mini eventos','PRÓXIMOS EVENTOS.','Actividades y dinámicas organizadas por la tienda.',true,60,'grid'),
   ('rewards','Fantasmas Rewards','TU LEALTAD TAMBIÉN RUEDA.','Compra, acumula sellos y recibe beneficios.',true,70,'featured'),
   ('allies','Aliados Fantasma','CONECTAMOS NEGOCIOS. CRECEMOS JUNTOS.','Una iniciativa impulsada por Fantasmas Biker''s Shop.',true,80,'featured'),
-  ('contact','Contacto','ESTA ES TU CASA BIKER.','Visítanos o comunícate con nuestro equipo.',true,90,'compact')
+  ('contact','Contacto','ESTA ES TU CASA BIKER.','Visítanos o comunícate con nuestro equipo.',true,90,'compact'),
+  ('footer','Pie de página','FANTASMAS BIKER''S SHOP','Información final del sitio.',true,100,'compact')
 on conflict (section_key) do nothing;
 
 insert into public.shop_categories (name,icon,description,sort_order)
@@ -104,9 +108,16 @@ values
   (100,10,'🎁','Muñeca Hello Kitty × Chucky','Peluche + mochila + gorra',60)
 on conflict (price) do nothing;
 
+insert into public.shop_settings (setting_key, setting_value)
+values ('store_info', '{}'::jsonb)
+on conflict (setting_key) do nothing;
+
 update public.shop_settings
 set setting_value = jsonb_build_object(
   'announcement','Primer aniversario · 24 de agosto · 11:00 a 19:00 h',
+  'ticker_phrases','ANIVERSARIO 2026\nPREMIOS Y PROMOCIONES\nCOMUNIDAD BIKER\nFANTASMAS BIKER''S SHOP',
+  'ticker_animation','scroll','ticker_speed','22','ticker_direction','left',
+  'ticker_color','blue','ticker_separator','✦',
   'hero_eyebrow','SITIO OFICIAL · CD. AZTECA, ECATEPEC',
   'hero_title','RODAMOS JUNTOS.',
   'hero_highlight','CELEBRAMOS EN GRANDE.',
@@ -119,7 +130,30 @@ set setting_value = jsonb_build_object(
   'instagram_text','@fantasmashop_cdazteca','instagram_url','https://www.instagram.com/fantasmashop_cdazteca',
   'tiktok_text','@fantasmasbikershop','tiktok_url','https://www.tiktok.com/@fantasmasbikershop',
   'youtube_text','@FANTASMASBIKERSHOPCDAZTECA','youtube_url','https://www.youtube.com/@FANTASMASBIKERSHOPCDAZTECA',
-  'links_url','https://linktr.ee/FANTASMASBIKERSCDAZTECA'
+  'links_url','https://linktr.ee/FANTASMASBIKERSCDAZTECA',
+  'event_datetime','2026-08-24T11:00:00-06:00','countdown_enabled','true'
+) || jsonb_build_object(
+  'nav_raffles_text','Rifas','nav_raffles_url','#rifas',
+  'nav_store_text','Tienda','nav_store_url','#tienda',
+  'nav_rewards_text','Beneficios','nav_rewards_url','#beneficios',
+  'nav_allies_text','Aliados','nav_allies_url','#aliados',
+  'nav_contact_text','Contacto','nav_contact_url','#contacto',
+  'header_cta_text','WhatsApp','header_cta_url','https://wa.me/525610329215',
+  'promotions_eyebrow','PROMOCIONES ACTIVAS','raffles_eyebrow','RIFAS DE ANIVERSARIO',
+  'raffles_steps_title','¿Cómo participo?','raffles_step_1','① Elige una rifa',
+  'raffles_step_2','② Aparta por WhatsApp','raffles_step_3','③ Confirma tu pago',
+  'raffles_step_4','④ Sigue el sorteo oficial',
+  'raffles_note','Si una lista no se completa el 24 de agosto, todos los números pagados continúan vigentes hasta llenarla.',
+  'anniversary_day','24','anniversary_date_label','AGOSTO 2026','anniversary_eyebrow','GUARDA LA FECHA',
+  'anniversary_cta_text','Cómo llegar ↗','anniversary_cta_url','https://maps.app.goo.gl/NqPb7tJ6CNmK2Siq6',
+  'catalog_eyebrow','NUESTRA TIENDA','products_eyebrow','CATÁLOGO ACTUAL','products_search_placeholder','Buscar en el catálogo...',
+  'events_eyebrow','AGENDA FANTASMAS','rewards_eyebrow','FANTASMAS REWARDS',
+  'rewards_count','10','rewards_title','sellos = $100 de descuento',
+  'rewards_text','Obtén un sello por cada $100 de compra. Sin vigencia y canje presencial.',
+  'delivery_title','ENTREGAS Y ENVÍOS','delivery_text','Tienda física, Mexibús L1 estación UNITEC y Línea B Cd. Azteca–Buenavista con compra mínima de $300. Envíos nacionales con cotización.',
+  'allies_eyebrow','UN PROYECTO DE FANTASMAS BIKER''S SHOP','allies_notice','PRÓXIMAMENTE CONECTAREMOS AMBAS PLATAFORMAS',
+  'contact_eyebrow','VISÍTANOS','contact_map_text','Abrir mapa','contact_whatsapp_text','Escribir ahora',
+  'footer_tagline','Rodando desde Cd. Azteca.','footer_copyright','© 2026 Fantasmas Biker''s Shop · Sitio oficial'
 ) || setting_value,
 updated_at = now()
 where setting_key = 'store_info';

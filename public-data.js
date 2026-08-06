@@ -7,6 +7,9 @@
   let products = [];
   let selectedCategory = "Todas";
   let storeWhatsApp = "525610329215";
+  let tickerTimer = null;
+  let countdownTimer = null;
+  const builderPreview = new URLSearchParams(window.location.search).has("preview");
   const sectionsReady = window.FANTASMAS_SECTIONS_READY || Promise.resolve([]);
 
   const money = (value) => value === null || value === undefined
@@ -114,18 +117,88 @@
     if (canReveal(section)) section.hidden = false;
   }
 
-  async function loadSettings() {
-    const { data } = await client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle();
-    const value = data?.setting_value || {};
+  function applyContentSettings(value) {
+    document.querySelectorAll("[data-setting-text]").forEach((element) => {
+      const key = element.dataset.settingText;
+      if (Object.prototype.hasOwnProperty.call(value, key)) element.textContent = value[key] || "";
+    });
+    document.querySelectorAll("[data-setting-href]").forEach((element) => {
+      const key = element.dataset.settingHref;
+      if (value[key]) element.href = value[key]; else element.removeAttribute("href");
+    });
+    document.querySelectorAll("[data-setting-placeholder]").forEach((element) => {
+      const key = element.dataset.settingPlaceholder;
+      if (Object.prototype.hasOwnProperty.call(value, key)) element.placeholder = value[key] || "";
+    });
+  }
+
+  function renderTicker(value) {
+    const ticker = document.querySelector("#anuncioAdministrable");
+    const track = ticker?.querySelector(".ticker-track");
+    if (!ticker || !track) return;
+    clearInterval(tickerTimer);
+    const phrases = String(value.ticker_phrases || value.announcement || "FANTASMAS BIKER'S SHOP").split(/\n|\|/).map((text) => text.trim()).filter(Boolean);
+    const animation = value.ticker_animation || "scroll";
+    const separator = value.ticker_separator || "✦";
+    const speed = Math.max(5, Math.min(60, Number(value.ticker_speed) || 22));
+    ticker.classList.remove("ticker-scroll","ticker-rotate","ticker-pulse","ticker-static","ticker-left","ticker-right","ticker-blue","ticker-pink","ticker-dark","ticker-gradient");
+    ticker.classList.add(`ticker-${animation}`, `ticker-${value.ticker_direction || "left"}`, `ticker-${value.ticker_color || "blue"}`);
+    ticker.style.setProperty("--ticker-duration", `${speed}s`);
+
+    const fillTrack = (items, copies = 1) => {
+      track.innerHTML = "";
+      for (let copy = 0; copy < copies; copy += 1) items.forEach((phrase, index) => {
+        const span = document.createElement("span"); span.className = "ticker-item"; span.textContent = phrase; track.append(span);
+        if (index < items.length - 1 || copy < copies - 1) { const icon = document.createElement("i"); icon.textContent = separator; track.append(icon); }
+      });
+    };
+
+    if (animation === "rotate") {
+      let current = 0; fillTrack([phrases[current] || "FANTASMAS BIKER'S SHOP"]);
+      if (!builderPreview) tickerTimer = setInterval(() => { current = (current + 1) % phrases.length; fillTrack([phrases[current]]); }, Math.max(2000, speed * 200));
+    } else {
+      fillTrack(phrases, animation === "scroll" ? 2 : 1);
+    }
+  }
+
+  function startCountdown(value) {
+    const countdown = document.querySelector("#countdown");
+    if (!countdown) return;
+    clearInterval(countdownTimer);
+    countdown.hidden = String(value.countdown_enabled ?? "true") === "false";
+    let source = value.event_datetime || "2026-08-24T11:00:00-06:00";
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(source)) source += ":00-06:00";
+    const target = new Date(source).getTime();
+    const update = () => {
+      const difference = Math.max(0, target - Date.now());
+      const values = { countdownDays: Math.floor(difference / 86400000), countdownHours: Math.floor(difference / 3600000) % 24, countdownMinutes: Math.floor(difference / 60000) % 60, countdownSeconds: Math.floor(difference / 1000) % 60 };
+      Object.entries(values).forEach(([id, number]) => { const element = document.getElementById(id); if (element) element.textContent = String(number).padStart(2, "0"); });
+      if (difference === 0) clearInterval(countdownTimer);
+    };
+    update();
+    if (!builderPreview) countdownTimer = setInterval(update, 1000);
+  }
+
+  function applyPublicSettings(value) {
     if (value.whatsapp) storeWhatsApp = whatsappNumber(value.whatsapp);
-    setText("#anuncioAdministrable", value.announcement ? `⚡ ${value.announcement} ⚡` : "");
-    setText("#heroEyebrow", value.hero_eyebrow); setText("#heroTitle", value.hero_title); setText("#heroHighlight", value.hero_highlight); setText("#heroIntro", value.hero_intro);
-    setText("#mainCta", value.main_cta_text); setHref("#mainCta", value.main_cta_url); setText("#catalogCta", value.catalog_cta_text); setHref("#catalogCta", value.catalog_cta_url);
+    applyContentSettings(value);
+    renderTicker(value);
+    startCountdown(value);
     setText("#storeAddress", value.address); setText("#storeWhatsapp", displayPhone(value.whatsapp)); setText("#storeCatalogPhone", displayPhone(value.catalog_phone)); setText("#storeDesignPhone", displayPhone(value.design_phone)); setHref("#mapsLink", value.maps_url);
     document.querySelectorAll(".whatsapp-link").forEach((link) => link.href = `https://wa.me/${storeWhatsApp}`);
     const social = [["#instagramLink", value.instagram_url, value.instagram_text], ["#tiktokLink", value.tiktok_url, value.tiktok_text], ["#youtubeLink", value.youtube_url, value.youtube_text]];
     social.forEach(([selector, url, text]) => { const link = document.querySelector(selector); if (!link) return; if (url) link.href = url; if (text) link.querySelector("b").textContent = text; });
     setHref("#allLinks", value.links_url);
+    if (builderPreview && products.length) renderProducts();
+  }
+  window.FANTASMAS_APPLY_PUBLIC_SETTINGS = applyPublicSettings;
+
+  async function loadSettings() {
+    const { data } = await client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle();
+    const value = data?.setting_value || {};
+    applyPublicSettings(value);
+    window.FANTASMAS_SETTINGS_LOADED = true;
+    window.dispatchEvent(new CustomEvent("fantasmas:settings-ready"));
   }
 
   document.querySelector("#catalogSearch")?.addEventListener("input", renderProducts);

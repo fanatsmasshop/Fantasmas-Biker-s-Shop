@@ -259,7 +259,8 @@
     const form = event.currentTarget;
     const value = Object.fromEntries(new FormData(form).entries());
     $("#settingsStatus").textContent = "Guardando...";
-    const { error } = await client.from("shop_settings").upsert({ setting_key: "store_info", setting_value: value, updated_at: new Date().toISOString() });
+    const { data: current } = await client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle();
+    const { error } = await client.from("shop_settings").upsert({ setting_key: "store_info", setting_value: { ...(current?.setting_value || {}), ...value }, updated_at: new Date().toISOString() });
     $("#settingsStatus").textContent = error ? error.message : "Información guardada.";
     if (!error) toast("Información pública actualizada.");
   });
@@ -310,4 +311,3 @@
 
   initialize();
 })();
-

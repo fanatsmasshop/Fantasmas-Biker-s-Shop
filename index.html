@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="editor-public.css">
 </head>
 <body>
-  <header class="encabezado">
+  <header class="encabezado" data-section-key="header">
     <a class="marca marca-logo" href="#inicio" aria-label="Fantasmas Biker's Shop, inicio">
       <img src="logo-nombre.png" alt="Fantasmas Biker's Shop">
     </a>
@@ -27,30 +27,31 @@
     <button class="menu-boton" id="menuBoton" aria-label="Abrir menú">☰</button>
 
     <nav id="menu">
-      <a href="#rifas">Rifas</a>
-      <a href="#tienda">Tienda</a>
-      <a href="#beneficios">Beneficios</a>
-      <a href="#aliados">Aliados</a>
-      <a href="#contacto">Contacto</a>
+      <a href="#rifas" data-setting-text="nav_raffles_text" data-setting-href="nav_raffles_url">Rifas</a>
+      <a href="#tienda" data-setting-text="nav_store_text" data-setting-href="nav_store_url">Tienda</a>
+      <a href="#beneficios" data-setting-text="nav_rewards_text" data-setting-href="nav_rewards_url">Beneficios</a>
+      <a href="#aliados" data-setting-text="nav_allies_text" data-setting-href="nav_allies_url">Aliados</a>
+      <a href="#contacto" data-setting-text="nav_contact_text" data-setting-href="nav_contact_url">Contacto</a>
     </nav>
 
-    <a class="boton boton-rosa solo-escritorio" href="https://wa.me/525610329215?text=Hola%2C%20vi%20la%20p%C3%A1gina%20oficial%20de%20Fantasmas%20Biker%27s%20Shop" target="_blank">WhatsApp</a>
+    <a class="boton boton-rosa solo-escritorio" href="https://wa.me/525610329215" target="_blank" data-setting-text="header_cta_text" data-setting-href="header_cta_url">WhatsApp</a>
   </header>
 
   <main>
-    <section class="portada" id="inicio">
+    <section class="portada editable-section" id="inicio" data-section-key="hero">
       <div class="portada-contenido">
-        <p class="etiqueta" id="heroEyebrow">SITIO OFICIAL · CD. AZTECA, ECATEPEC</p>
-        <h1><span class="hero-title" id="heroTitle">RODAMOS JUNTOS.</span><br><span id="heroHighlight">CELEBRAMOS EN GRANDE.</span></h1>
-        <p class="introduccion" id="heroIntro">Accesorios biker, artículos exclusivos y personalización con carácter. Este 24 de agosto celebramos nuestro primer aniversario contigo.</p>
+        <p class="etiqueta" id="heroEyebrow" data-setting-text="hero_eyebrow">SITIO OFICIAL · CD. AZTECA, ECATEPEC</p>
+        <h1><span class="hero-title" id="heroTitle" data-setting-text="hero_title">RODAMOS JUNTOS.</span><br><span id="heroHighlight" data-setting-text="hero_highlight">CELEBRAMOS EN GRANDE.</span></h1>
+        <p class="introduccion" id="heroIntro" data-setting-text="hero_intro">Accesorios biker, artículos exclusivos y personalización con carácter. Este 24 de agosto celebramos nuestro primer aniversario contigo.</p>
         <div class="acciones">
-          <a class="boton boton-rosa" id="mainCta" href="#rifas">Ver rifas</a>
-          <a class="boton boton-oscuro" id="catalogCta" href="https://linktr.ee/FANTASMASBIKERSCDAZTECA" target="_blank">Ver catálogo</a>
+          <a class="boton boton-rosa" id="mainCta" href="#rifas" data-setting-text="main_cta_text" data-setting-href="main_cta_url">Ver rifas</a>
+          <a class="boton boton-oscuro" id="catalogCta" href="https://linktr.ee/FANTASMASBIKERSCDAZTECA" target="_blank" data-setting-text="catalog_cta_text" data-setting-href="catalog_cta_url">Ver catálogo</a>
         </div>
-        <div class="datos-evento">
-          <div><strong>24 AGO</strong><span>Aniversario</span></div>
-          <div><strong>11–19 H</strong><span>Evento</span></div>
-          <div><strong>6</strong><span>Rifas</span></div>
+        <div class="datos-evento" id="countdown" aria-label="Cuenta regresiva">
+          <div><strong id="countdownDays">00</strong><span>Días</span></div>
+          <div><strong id="countdownHours">00</strong><span>Horas</span></div>
+          <div><strong id="countdownMinutes">00</strong><span>Minutos</span></div>
+          <div><strong id="countdownSeconds">00</strong><span>Segundos</span></div>
         </div>
       </div>
       <div class="portada-visual portada-logo">
@@ -58,11 +59,13 @@
       </div>
     </section>
 
-    <div class="franja" id="anuncioAdministrable">⚡ ANIVERSARIO 2026 · PREMIOS · PROMOCIONES · COMUNIDAD BIKER · FANTASMAS BIKER'S SHOP ⚡</div>
+    <div class="franja editable-section ticker ticker-scroll ticker-blue" id="anuncioAdministrable" data-section-key="announcement" aria-label="Anuncios de la tienda">
+      <div class="ticker-track"><span class="ticker-item">ANIVERSARIO 2026</span><i>✦</i><span class="ticker-item">PREMIOS Y PROMOCIONES</span><i>✦</i><span class="ticker-item">COMUNIDAD BIKER</span><i>✦</i><span class="ticker-item">FANTASMAS BIKER'S SHOP</span></div>
+    </div>
 
     <section class="promociones-publicas editable-section" id="promocionesPublicas" data-section-key="promotions" hidden>
       <div class="titulo-seccion">
-        <div><p class="etiqueta">PROMOCIONES ACTIVAS</p><h2 data-section-title>OPORTUNIDADES<br>DE LA TIENDA.</h2></div>
+        <div><p class="etiqueta" data-setting-text="promotions_eyebrow">PROMOCIONES ACTIVAS</p><h2 data-section-title>OPORTUNIDADES<br>DE LA TIENDA.</h2></div>
         <p data-section-subtitle>Promociones publicadas directamente por Fantasmas Biker's Shop. Consulta disponibilidad antes de realizar tu pedido.</p>
       </div>
       <div class="promociones-grid" id="promocionesDinamicas"></div>
@@ -71,7 +74,7 @@
     <section class="seccion editable-section" id="rifas" data-section-key="raffles">
       <div class="titulo-seccion">
         <div>
-          <p class="etiqueta">RIFAS DE ANIVERSARIO</p>
+          <p class="etiqueta" data-setting-text="raffles_eyebrow">RIFAS DE ANIVERSARIO</p>
           <h2 data-section-title>ELIGE TU NIVEL.<br>CUATRO GANADORES.</h2>
         </div>
         <p data-section-subtitle>Cada rifa tiene tres premios secundarios y un premio principal. El premio principal se revela al final y las cuatro personas ganadoras serán diferentes.</p>
@@ -80,29 +83,29 @@
       <div class="rifas-grid" id="listaRifas"></div>
 
       <div class="pasos">
-        <strong>¿Cómo participo?</strong>
-        <span>① Elige una rifa</span>
-        <span>② Aparta por WhatsApp</span>
-        <span>③ Confirma tu pago</span>
-        <span>④ Sigue el sorteo oficial</span>
+        <strong data-setting-text="raffles_steps_title">¿Cómo participo?</strong>
+        <span data-setting-text="raffles_step_1">① Elige una rifa</span>
+        <span data-setting-text="raffles_step_2">② Aparta por WhatsApp</span>
+        <span data-setting-text="raffles_step_3">③ Confirma tu pago</span>
+        <span data-setting-text="raffles_step_4">④ Sigue el sorteo oficial</span>
       </div>
-      <p class="nota">Si una lista no se completa el 24 de agosto, todos los números pagados continúan vigentes hasta llenarla.</p>
+      <p class="nota" data-setting-text="raffles_note">Si una lista no se completa el 24 de agosto, todos los números pagados continúan vigentes hasta llenarla.</p>
     </section>
 
     <section class="aniversario editable-section" data-section-key="anniversary">
-      <div class="fecha-grande">24 <span>AGOSTO<br>2026</span></div>
+      <div class="fecha-grande"><b data-setting-text="anniversary_day">24</b> <span data-setting-text="anniversary_date_label">AGOSTO 2026</span></div>
       <div>
-        <p class="etiqueta etiqueta-negra">GUARDA LA FECHA</p>
+        <p class="etiqueta etiqueta-negra" data-setting-text="anniversary_eyebrow">GUARDA LA FECHA</p>
         <h2 data-section-title>NUESTRO ANIVERSARIO<br>SE VIVE EN LA TIENDA.</h2>
         <p data-section-subtitle>Ven por promociones, rifas y sorpresas de 11:00 a 19:00 h.</p>
       </div>
-      <a class="boton boton-claro" href="https://maps.app.goo.gl/NqPb7tJ6CNmK2Siq6" target="_blank">Cómo llegar ↗</a>
+      <a class="boton boton-claro" href="https://maps.app.goo.gl/NqPb7tJ6CNmK2Siq6" target="_blank" data-setting-text="anniversary_cta_text" data-setting-href="anniversary_cta_url">Cómo llegar ↗</a>
     </section>
 
     <section class="seccion editable-section" id="tienda" data-section-key="catalog_intro">
       <div class="titulo-seccion">
         <div>
-          <p class="etiqueta">NUESTRA TIENDA</p>
+          <p class="etiqueta" data-setting-text="catalog_eyebrow">NUESTRA TIENDA</p>
           <h2 data-section-title>EQUIPO, ESTILO<br>Y PERSONALIZACIÓN.</h2>
         </div>
         <p data-section-subtitle>Artículos para quienes llevan la carretera y su identidad a todas partes. Pregunta por modelos, tallas y existencias.</p>
@@ -117,16 +120,16 @@
 
     <section class="productos-publicos editable-section" id="productosPublicos" data-section-key="products" hidden>
       <div class="titulo-seccion">
-        <div><p class="etiqueta">CATÁLOGO ACTUAL</p><h2 data-section-title>PRODUCTOS<br>DISPONIBLES.</h2></div>
+        <div><p class="etiqueta" data-setting-text="products_eyebrow">CATÁLOGO ACTUAL</p><h2 data-section-title>PRODUCTOS<br>DISPONIBLES.</h2></div>
         <p data-section-subtitle>Modelos publicados desde nuestro panel oficial. Las existencias pueden cambiar; confirma por WhatsApp.</p>
       </div>
-      <div class="catalog-toolbar"><input id="catalogSearch" type="search" placeholder="Buscar en el catálogo..." aria-label="Buscar productos"><div class="category-filters" id="categoryFilters"></div></div>
+      <div class="catalog-toolbar"><input id="catalogSearch" type="search" placeholder="Buscar en el catálogo..." aria-label="Buscar productos" data-setting-placeholder="products_search_placeholder"><div class="category-filters" id="categoryFilters"></div></div>
       <div class="productos-grid" id="productosDinamicos"></div>
     </section>
 
     <section class="eventos-publicos editable-section" id="eventosPublicos" data-section-key="events" hidden>
       <div class="titulo-seccion">
-        <div><p class="etiqueta">AGENDA FANTASMAS</p><h2 data-section-title>PRÓXIMOS<br>EVENTOS.</h2></div>
+        <div><p class="etiqueta" data-setting-text="events_eyebrow">AGENDA FANTASMAS</p><h2 data-section-title>PRÓXIMOS<br>EVENTOS.</h2></div>
         <p data-section-subtitle>Actividades, dinámicas y mini eventos organizados por Fantasmas Biker's Shop.</p>
       </div>
       <div class="eventos-grid" id="eventosDinamicos"></div>
@@ -134,12 +137,12 @@
 
     <section class="beneficios editable-section" id="beneficios" data-section-key="rewards">
       <div>
-        <p class="etiqueta">FANTASMAS REWARDS</p>
+        <p class="etiqueta" data-setting-text="rewards_eyebrow">FANTASMAS REWARDS</p>
         <h2 data-section-title>TU LEALTAD<br>TAMBIÉN RUEDA.</h2>
         <p class="section-lead" data-section-subtitle>Compra, acumula sellos y recibe beneficios.</p>
       </div>
-      <div class="premio-sellos"><strong>10</strong><p><b>sellos = $100 de descuento</b><br>Obtén un sello por cada $100 de compra. Sin vigencia y canje presencial.</p></div>
-      <div class="entregas"><b>ENTREGAS Y ENVÍOS</b><p>Tienda física, Mexibús L1 estación UNITEC y Línea B Cd. Azteca–Buenavista con compra mínima de $300. Envíos nacionales con cotización.</p></div>
+      <div class="premio-sellos"><strong data-setting-text="rewards_count">10</strong><p><b data-setting-text="rewards_title">sellos = $100 de descuento</b><br><span data-setting-text="rewards_text">Obtén un sello por cada $100 de compra. Sin vigencia y canje presencial.</span></p></div>
+      <div class="entregas"><b data-setting-text="delivery_title">ENTREGAS Y ENVÍOS</b><p data-setting-text="delivery_text">Tienda física, Mexibús L1 estación UNITEC y Línea B Cd. Azteca–Buenavista con compra mínima de $300. Envíos nacionales con cotización.</p></div>
     </section>
 
     <section class="aliados editable-section" id="aliados" data-section-key="allies">
@@ -147,40 +150,40 @@
         <img src="logo-aliados.png" alt="Aliados Fantasma, proyecto impulsado por Fantasmas Biker's Shop">
       </div>
       <div class="aliados-contenido">
-        <p class="etiqueta">UN PROYECTO DE FANTASMAS BIKER'S SHOP</p>
+        <p class="etiqueta" data-setting-text="allies_eyebrow">UN PROYECTO DE FANTASMAS BIKER'S SHOP</p>
         <h2 data-section-title>CONECTAMOS NEGOCIOS.<br><span>CRECEMOS JUNTOS.</span></h2>
         <p data-section-subtitle>Aliados Fantasma forma parte del ecosistema de Fantasmas Biker's Shop: una iniciativa creada para conectar, impulsar y dar visibilidad a los negocios de nuestra comunidad.</p>
-        <p class="proximamente">PRÓXIMAMENTE CONECTAREMOS AMBAS PLATAFORMAS</p>
+        <p class="proximamente" data-setting-text="allies_notice">PRÓXIMAMENTE CONECTAREMOS AMBAS PLATAFORMAS</p>
       </div>
     </section>
 
     <section class="contacto editable-section" id="contacto" data-section-key="contact">
       <div>
-        <p class="etiqueta">VISÍTANOS</p>
+        <p class="etiqueta" data-setting-text="contact_eyebrow">VISÍTANOS</p>
         <h2 data-section-title>ESTA ES TU<br>CASA BIKER.</h2>
         <p class="section-lead" data-section-subtitle>Visítanos o comunícate con nuestro equipo.</p>
-        <p id="storeAddress">Av. Gobernadora 656, Tolotzin I, Condominio T37, Mz. 003, Ecatepec de Morelos.</p>
+        <p id="storeAddress" data-setting-text="address">Av. Gobernadora 656, Tolotzin I, Condominio T37, Mz. 003, Ecatepec de Morelos.</p>
         <p><b>Atención y pedidos:</b> <span id="storeWhatsapp">56 1032 9215</span><br><b>Catálogo:</b> <span id="storeCatalogPhone">56 5153 1820</span><br><b>Diseño e impresión:</b> <span id="storeDesignPhone">55 4557 9857</span></p>
         <div class="acciones">
-          <a class="boton boton-rosa" id="mapsLink" href="https://maps.app.goo.gl/NqPb7tJ6CNmK2Siq6" target="_blank">Abrir mapa</a>
-          <a class="boton boton-oscuro whatsapp-link" href="https://wa.me/525610329215" target="_blank">Escribir ahora</a>
+          <a class="boton boton-rosa" id="mapsLink" href="https://maps.app.goo.gl/NqPb7tJ6CNmK2Siq6" target="_blank" data-setting-text="contact_map_text" data-setting-href="maps_url">Abrir mapa</a>
+          <a class="boton boton-oscuro whatsapp-link" href="https://wa.me/525610329215" target="_blank" data-setting-text="contact_whatsapp_text">Escribir ahora</a>
         </div>
       </div>
 
       <div class="redes">
         <p class="etiqueta">SÍGUENOS</p>
-        <a id="instagramLink" href="https://www.instagram.com/fantasmashop_cdazteca" target="_blank"><span>Instagram</span><b>@fantasmashop_cdazteca</b></a>
-        <a id="tiktokLink" href="https://www.tiktok.com/@fantasmasbikershop" target="_blank"><span>TikTok</span><b>@fantasmasbikershop</b></a>
-        <a id="youtubeLink" href="https://www.youtube.com/@FANTASMASBIKERSHOPCDAZTECA" target="_blank"><span>YouTube</span><b>@FANTASMASBIKERSHOPCDAZTECA</b></a>
-        <a id="allLinks" href="https://linktr.ee/FANTASMASBIKERSCDAZTECA" target="_blank"><span>Todos los enlaces</span><b>Linktree ↗</b></a>
+        <a id="instagramLink" href="https://www.instagram.com/fantasmashop_cdazteca" target="_blank" data-setting-href="instagram_url"><span>Instagram</span><b data-setting-text="instagram_text">@fantasmashop_cdazteca</b></a>
+        <a id="tiktokLink" href="https://www.tiktok.com/@fantasmasbikershop" target="_blank" data-setting-href="tiktok_url"><span>TikTok</span><b data-setting-text="tiktok_text">@fantasmasbikershop</b></a>
+        <a id="youtubeLink" href="https://www.youtube.com/@FANTASMASBIKERSHOPCDAZTECA" target="_blank" data-setting-href="youtube_url"><span>YouTube</span><b data-setting-text="youtube_text">@FANTASMASBIKERSHOPCDAZTECA</b></a>
+        <a id="allLinks" href="https://linktr.ee/FANTASMASBIKERSCDAZTECA" target="_blank" data-setting-href="links_url"><span>Todos los enlaces</span><b>Linktree ↗</b></a>
       </div>
     </section>
   </main>
 
-  <footer>
+  <footer data-section-key="footer">
     <div class="marca marca-logo marca-logo-footer"><img src="logo-nombre.png" alt="Fantasmas Biker's Shop"></div>
-    <p>Rodando desde Cd. Azteca.</p>
-    <small>© 2026 Fantasmas Biker's Shop · Sitio oficial</small>
+    <p data-setting-text="footer_tagline">Rodando desde Cd. Azteca.</p>
+    <small data-setting-text="footer_copyright">© 2026 Fantasmas Biker's Shop · Sitio oficial</small>
   </footer>
 
   <a class="whatsapp-flotante whatsapp-link" href="https://wa.me/525610329215" target="_blank" aria-label="Contactar por WhatsApp">✆</a>
