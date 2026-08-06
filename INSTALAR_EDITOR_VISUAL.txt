@@ -1,0 +1,57 @@
+FANTASMAS BIKER'S SHOP — EDITOR VISUAL TIPO GOOGLE SITES
+=========================================================
+
+IMPORTANTE
+No reemplaces supabase-config.js. Tu Project URL y tu Publishable key actuales
+se conservan tal como están.
+
+PASO 1 — ACTUALIZAR SUPABASE
+1. Abre tu proyecto de Supabase.
+2. Entra a SQL Editor.
+3. Abre el archivo database_editor.sql incluido en este paquete.
+4. Copia todo su contenido, pégalo en una consulta nueva y presiona Run.
+5. Debe terminar sin errores. Este archivo se puede ejecutar nuevamente si
+   fuera necesario.
+
+PASO 2 — SUBIR LOS ARCHIVOS A GITHUB
+Sube a la raíz del repositorio todos los archivos de este ZIP. Cuando GitHub
+pregunte, confirma el reemplazo de los archivos que ya existen.
+
+PASO 3 — ESPERAR CLOUDFLARE
+Cloudflare Pages detectará el cambio y hará un despliegue automático. Cuando
+termine, abre:
+
+https://fantasmas-biker-s-shop.pages.dev/admin
+
+Si ves una versión anterior, usa Ctrl + F5.
+
+QUÉ PODRÁS HACER
+- Editor visual con la página real al centro.
+- Arrastrar secciones para cambiar su orden.
+- Seleccionar una sección y cambiar título, descripción y presentación.
+- Mostrar u ocultar bloques.
+- Revisar vista de escritorio y celular antes de publicar.
+- Administrar productos y sus fotografías.
+- Administrar categorías del catálogo.
+- Administrar promociones y sus fotografías.
+- Administrar rifas, premios, números, precio y fotografía.
+- Administrar mini eventos, fechas, lugar y fotografía.
+- Editar portada, botones, teléfonos, dirección y redes sociales.
+- Buscar y filtrar productos en el catálogo público.
+
+CÓMO PUBLICAR CAMBIOS DE DISEÑO
+En Panel > Editor de página, acomoda los bloques y presiona “Publicar cambios”.
+Los productos, promociones, rifas y eventos se publican al guardarlos desde su
+propio apartado.
+
+ARCHIVOS INCLUIDOS
+- index.html
+- admin.html
+- script.js
+- public-data.js
+- site-editor.js
+- editor.js
+- editor.css
+- editor-public.css
+- database_editor.sql
+

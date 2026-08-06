@@ -1,4 +1,4 @@
-// Datos principales de las rifas. Puedes editar precios y premios aquí.
+// Datos de respaldo: el panel sustituye esta lista cuando el editor está instalado.
 const rifas = [
   { precio: 10, numeros: 30, icono: "⏰", principal: "Reloj despertador con radio y bocina Bluetooth", secundarios: "3 peluches exclusivos" },
   { precio: 20, numeros: 20, icono: "🎧", principal: "Intercomunicador Bluetooth para casco", secundarios: "3 peluches exclusivos" },
@@ -7,6 +7,7 @@ const rifas = [
   { precio: 75, numeros: 12, icono: "🏍", principal: "Portallaves biker metálico #2", secundarios: "Peluche + mochila + gorra" },
   { precio: 100, numeros: 10, icono: "🎁", principal: "Muñeca Hello Kitty × Chucky", secundarios: "Peluche + mochila + gorra" }
 ];
+window.FANTASMAS_FALLBACK_RAFFLES = rifas;
 
 const telefono = "525610329215";
 const contenedor = document.querySelector("#listaRifas");

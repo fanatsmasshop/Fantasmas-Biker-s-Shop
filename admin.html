@@ -8,6 +8,7 @@
   <title>Panel administrativo | Fantasmas Biker's Shop</title>
   <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="editor.css">
   <style>[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -30,8 +31,12 @@
       <div class="side-logo"><img src="logo-nombre.png" alt="Fantasmas Biker's Shop"><button id="closeMenu" aria-label="Cerrar menú">×</button></div>
       <nav>
         <button class="nav-item active" data-view="dashboard">▦ <span>Resumen</span></button>
+        <button class="nav-item" data-view="editor">▤ <span>Editor de página</span></button>
         <button class="nav-item" data-view="products">◈ <span>Productos</span></button>
+        <button class="nav-item" data-view="categories">☷ <span>Categorías</span></button>
         <button class="nav-item" data-view="promotions">⚡ <span>Promociones</span></button>
+        <button class="nav-item" data-view="raffles">🎟 <span>Rifas</span></button>
+        <button class="nav-item" data-view="events">◷ <span>Mini eventos</span></button>
         <button class="nav-item" data-view="settings">⚙ <span>Información</span></button>
       </nav>
       <div class="side-bottom"><a href="index.html" target="_blank">Ver página pública ↗</a><button id="logoutButton">Cerrar sesión</button></div>
@@ -50,10 +55,38 @@
         <div class="welcome"><div><p class="eyebrow">CENTRO DE CONTROL</p><h2>Publica sin editar código.</h2><p>Los cambios realizados aquí se guardan en Supabase y aparecen en la página pública. Las fotografías se almacenan en el espacio privado de administración de la tienda.</p></div><img src="logo-shop.png" alt="Fantasmas Biker's Shop"></div>
       </section>
 
+      <section class="view" id="view-editor">
+        <div class="page-head builder-heading"><div><p class="eyebrow">CONSTRUCTOR VISUAL PROTEGIDO</p><h1>Diseñar página</h1></div><div class="head-actions"><a class="secondary button-link" href="index.html" target="_blank">Abrir publicada ↗</a><button class="primary" id="saveSectionsButton">Publicar cambios</button></div></div>
+        <div class="editor-help"><b>Funciona como un Google Sites simplificado.</b><span>Arrastra bloques, selecciónalos para editar y revisa el resultado en vivo. La identidad gráfica siempre se conserva.</span></div>
+        <div class="builder-toolbar"><div><b>Vista previa</b><button class="device-button active" type="button" data-device="desktop" title="Computadora">▰ Escritorio</button><button class="device-button" type="button" data-device="mobile" title="Celular">▯ Celular</button></div><span id="sectionEditorStatus">Cargando página…</span></div>
+        <div class="site-builder">
+          <aside class="builder-structure"><div class="builder-panel-title"><b>Secciones</b><small>Arrastra para ordenar</small></div><div class="section-editor" id="sectionEditor"></div></aside>
+          <div class="builder-canvas" id="builderCanvas"><iframe id="sitePreview" src="index.html?preview=1" title="Vista previa de la página"></iframe></div>
+          <aside class="builder-inspector" id="sectionInspector">
+            <div class="builder-panel-title inspector-title"><div><b>Editar bloque</b><small id="inspectorSectionName">Selecciona una sección</small></div><button type="button" id="closeInspector" aria-label="Cerrar propiedades">×</button></div>
+            <div class="inspector-empty" id="inspectorEmpty">Selecciona un bloque de la lista o directamente en la vista previa.</div>
+            <form id="sectionInspectorForm" hidden>
+              <input type="hidden" name="section_key">
+              <label>Título<input name="title" maxlength="140"></label>
+              <label>Descripción<textarea name="subtitle" rows="5" maxlength="500"></textarea></label>
+              <label>Presentación<select name="layout"><option value="grid">Cuadrícula</option><option value="featured">Destacado</option><option value="compact">Compacto</option><option value="carousel">Carrusel</option></select></label>
+              <label class="inspector-toggle"><input name="enabled" type="checkbox"> Mostrar este bloque</label>
+              <p>Los productos, promociones, rifas y eventos se editan desde sus apartados del menú.</p>
+            </form>
+          </aside>
+        </div>
+      </section>
+
       <section class="view" id="view-products">
         <div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Productos</h1></div><button class="primary" id="newProductButton">+ Nuevo producto</button></div>
         <div class="toolbar"><input id="productSearch" type="search" placeholder="Buscar producto..."><select id="productFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Ocultos</option><option value="featured">Destacados</option></select></div>
         <div class="admin-list" id="productsList"></div>
+      </section>
+
+      <section class="view" id="view-categories">
+        <div class="page-head"><div><p class="eyebrow">ORGANIZACIÓN DEL CATÁLOGO</p><h1>Categorías</h1></div></div>
+        <form class="quick-form category-form" id="categoryForm"><input type="hidden" name="id"><input name="icon" placeholder="Icono" value="☠" maxlength="8" aria-label="Icono"><input name="name" placeholder="Nombre de la categoría" required maxlength="60"><input class="category-description" name="description" placeholder="Descripción para el catálogo" maxlength="300"><input name="sort_order" type="number" value="0" aria-label="Orden"><label class="quick-check"><input name="active" type="checkbox" checked> Visible</label><button class="primary" type="submit">Guardar</button><button class="secondary" type="reset" id="cancelCategory">Cancelar</button></form>
+        <div class="admin-list" id="categoriesList"></div>
       </section>
 
       <section class="view" id="view-promotions">
@@ -61,14 +94,43 @@
         <div class="admin-list" id="promotionsList"></div>
       </section>
 
+      <section class="view" id="view-raffles">
+        <div class="page-head"><div><p class="eyebrow">DINÁMICAS DE LA TIENDA</p><h1>Rifas</h1></div><button class="primary" id="newRaffleButton">+ Nueva rifa</button></div>
+        <div class="admin-list" id="rafflesList"></div>
+      </section>
+
+      <section class="view" id="view-events">
+        <div class="page-head"><div><p class="eyebrow">ACTIVIDADES DE LA TIENDA</p><h1>Mini eventos</h1></div><button class="primary" id="newEventButton">+ Nuevo evento</button></div>
+        <div class="admin-list" id="eventsList"></div>
+      </section>
+
       <section class="view" id="view-settings">
         <div class="page-head"><div><p class="eyebrow">DATOS PÚBLICOS</p><h1>Información</h1></div></div>
         <form class="settings-form" id="settingsForm">
+          <h2 class="form-section-title">Portada y anuncio</h2>
           <label class="wide">Anuncio principal<input name="announcement" placeholder="Ej. Aniversario · 24 de agosto"></label>
+          <label class="wide">Frase superior<input name="hero_eyebrow" placeholder="SITIO OFICIAL · CD. AZTECA, ECATEPEC"></label>
+          <label>Título de portada<input name="hero_title" placeholder="RODAMOS JUNTOS."></label>
+          <label>Texto destacado<input name="hero_highlight" placeholder="CELEBRAMOS EN GRANDE."></label>
+          <label class="wide">Introducción<textarea name="hero_intro" rows="3"></textarea></label>
+          <label>Botón principal<input name="main_cta_text" placeholder="Ver rifas"></label>
+          <label>Enlace principal<input name="main_cta_url" placeholder="#rifas"></label>
+          <label>Botón de catálogo<input name="catalog_cta_text" placeholder="Ver catálogo"></label>
+          <label>Enlace de catálogo<input name="catalog_cta_url" placeholder="https://..."></label>
+          <h2 class="form-section-title">Contacto y ubicación</h2>
           <label>WhatsApp principal<input name="whatsapp" inputmode="numeric"></label>
           <label>Teléfono de catálogo<input name="catalog_phone" inputmode="numeric"></label>
           <label>Diseño e impresión<input name="design_phone" inputmode="numeric"></label>
+          <label>Enlace de Google Maps<input name="maps_url" placeholder="https://maps.app.goo.gl/..."></label>
           <label class="wide">Dirección<textarea name="address" rows="3"></textarea></label>
+          <h2 class="form-section-title">Redes sociales</h2>
+          <label>Usuario de Instagram<input name="instagram_text" placeholder="@fantasmashop_cdazteca"></label>
+          <label>Enlace de Instagram<input name="instagram_url" placeholder="https://instagram.com/..."></label>
+          <label>Usuario de TikTok<input name="tiktok_text" placeholder="@fantasmasbikershop"></label>
+          <label>Enlace de TikTok<input name="tiktok_url" placeholder="https://tiktok.com/..."></label>
+          <label>Canal de YouTube<input name="youtube_text" placeholder="@FANTASMASBIKERSHOPCDAZTECA"></label>
+          <label>Enlace de YouTube<input name="youtube_url" placeholder="https://youtube.com/..."></label>
+          <label class="wide">Enlace general / Linktree<input name="links_url" placeholder="https://linktr.ee/..."></label>
           <button class="primary" type="submit">Guardar información</button><span class="form-status" id="settingsStatus"></span>
         </form>
       </section>
@@ -81,7 +143,7 @@
       <input type="hidden" name="id"><input type="hidden" name="current_image_url"><input type="hidden" name="current_image_path">
       <div class="form-grid">
         <label class="wide">Nombre del producto<input name="name" required maxlength="120"></label>
-        <label>Categoría<input name="category" value="General" required maxlength="60"></label>
+        <label>Categoría<input name="category" list="categoryOptions" value="General" required maxlength="60"><datalist id="categoryOptions"></datalist></label>
         <label>Orden<input name="sort_order" type="number" value="0"></label>
         <label>Precio actual<input name="price" type="number" min="0" step="0.01"></label>
         <label>Precio anterior<input name="previous_price" type="number" min="0" step="0.01"></label>
@@ -91,6 +153,45 @@
         <label class="check"><input name="featured" type="checkbox"> Producto destacado</label>
       </div>
       <div class="dialog-actions"><span class="form-status" id="productStatus"></span><button type="button" class="secondary close-dialog">Cancelar</button><button class="primary" type="submit">Guardar producto</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="eventDialog">
+    <form class="dialog-form" id="eventForm">
+      <div class="dialog-head"><div><p class="eyebrow">MINI EVENTOS</p><h2 id="eventDialogTitle">Nuevo evento</h2></div><button type="button" class="icon-button close-event-dialog">×</button></div>
+      <input type="hidden" name="id"><input type="hidden" name="current_image_url"><input type="hidden" name="current_image_path">
+      <div class="form-grid">
+        <label class="wide">Nombre del evento<input name="title" required maxlength="120"></label>
+        <label class="wide">Descripción<textarea name="description" rows="4" maxlength="600"></textarea></label>
+        <label>Fecha y hora<input name="event_date" type="datetime-local" required></label>
+        <label>Fecha de término<input name="end_date" type="datetime-local"></label>
+        <label class="wide">Lugar<input name="location" value="Fantasmas Biker's Shop"></label>
+        <label>Texto del botón<input name="button_text" value="Más información"></label>
+        <label>Enlace del botón<input name="button_url" value="https://wa.me/525610329215"></label>
+        <label>Orden<input name="sort_order" type="number" value="0"></label>
+        <label class="check"><input name="active" type="checkbox" checked> Evento visible</label>
+        <label class="wide file-label">Imagen opcional<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
+      </div>
+      <div class="dialog-actions"><span class="form-status" id="eventStatus"></span><button type="button" class="secondary close-event-dialog">Cancelar</button><button class="primary" type="submit">Guardar evento</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="raffleDialog">
+    <form class="dialog-form" id="raffleForm">
+      <div class="dialog-head"><div><p class="eyebrow">RIFAS</p><h2 id="raffleDialogTitle">Nueva rifa</h2></div><button type="button" class="icon-button close-raffle-dialog">×</button></div>
+      <input type="hidden" name="id"><input type="hidden" name="current_image_url"><input type="hidden" name="current_image_path">
+      <div class="form-grid">
+        <label>Precio por número<input name="price" type="number" min="0" step="0.01" required></label>
+        <label>Cantidad de números<input name="total_numbers" type="number" min="1" value="20" required></label>
+        <label>Icono<input name="icon" value="🎁" maxlength="8"></label>
+        <label>Orden<input name="sort_order" type="number" value="0"></label>
+        <label class="wide">Premio principal<input name="main_prize" required maxlength="180"></label>
+        <label class="wide">Premios secundarios<textarea name="secondary_prizes" rows="3" maxlength="350"></textarea></label>
+        <label class="wide file-label">Imagen opcional del premio<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
+        <label>Texto del botón<input name="button_text" value="Apartar número"></label>
+        <label class="check"><input name="active" type="checkbox" checked> Rifa visible</label>
+      </div>
+      <div class="dialog-actions"><span class="form-status" id="raffleStatus"></span><button type="button" class="secondary close-raffle-dialog">Cancelar</button><button class="primary" type="submit">Guardar rifa</button></div>
     </form>
   </dialog>
 
@@ -118,5 +219,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="admin.js"></script>
+  <script src="editor.js"></script>
 </body>
 </html>
