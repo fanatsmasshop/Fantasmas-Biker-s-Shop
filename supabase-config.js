@@ -8,5 +8,5 @@
 */
 window.FANTASMAS_SUPABASE = {
   url: "https://tyddohmyjvhqsdxircvp.supabase.co",
-  publishableKey: "PON_AQUI_TU_PUBLISHABLE_KEY"
+  publishableKey: "sb_publishable_vVm6U0Sz6W_blhVcGBW5dg_b0J13Rlh"
 };
