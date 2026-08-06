@@ -1,7 +1,7 @@
 /* Identidad oficial de Fantasmas Biker's Shop y Aliados Fantasma */
 .marca-logo {
   height: 66px;
-  width: 110px;
+  width: 170px;
   justify-content: center;
   overflow: hidden;
 }
@@ -86,8 +86,8 @@
 }
 
 .marca-logo-footer {
-  width: 130px;
-  height: 92px;
+  width: 190px;
+  height: 100px;
 }
 
 @media (max-width: 920px) {
@@ -96,10 +96,10 @@
 }
 
 @media (max-width: 680px) {
-  .marca-logo { width: 82px; height: 62px; }
+  .marca-logo { width: 128px; height: 62px; }
   .portada-logo { padding: 18px; }
   .aliados { padding: 70px 20px; }
   .aliados-logo { min-height: 280px; }
   .aliados-contenido h2 { font-size: 40px; }
-  .marca-logo-footer { width: 125px; height: 105px; margin: auto; }
+  .marca-logo-footer { width: 175px; height: 100px; margin: auto; }
 }
