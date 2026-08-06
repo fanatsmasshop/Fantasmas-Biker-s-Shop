@@ -17,6 +17,34 @@
   let draggedKey = "";
   const fixedSections = new Set(["header", "footer"]);
   const specialSections = new Set(["header", "hero", "announcement", "footer"]);
+  const sectionAnchors = {
+    hero: "#inicio",
+    announcement: "#anuncioAdministrable",
+    promotions: "#promocionesPublicas",
+    raffles: "#rifas",
+    anniversary: "#aniversario",
+    catalog_intro: "#tienda",
+    products: "#productosPublicos",
+    events: "#eventosPublicos",
+    rewards: "#beneficios",
+    allies: "#aliados",
+    contact: "#contacto",
+    footer: "#pie"
+  };
+  const defaultSectionLabels = {
+    hero: "Portada / Inicio",
+    announcement: "Franja de anuncios",
+    promotions: "Promociones",
+    raffles: "Rifas",
+    anniversary: "Aniversario",
+    catalog_intro: "Presentación de la tienda",
+    products: "Productos",
+    events: "Mini eventos",
+    rewards: "Fantasmas Rewards",
+    allies: "Aliados Fantasma",
+    contact: "Contacto",
+    footer: "Pie de página"
+  };
   const sectionFields = {
     header: [
       ["nav_raffles_text","Texto: Rifas"],["nav_raffles_url","Enlace: Rifas","url"],
@@ -70,6 +98,159 @@
     const date = new Date(value);
     const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return adjusted.toISOString().slice(0, 16);
+  }
+
+  function linkMode(value) {
+    const link = String(value || "").trim();
+    if (!link) return "none";
+    if (link.startsWith("#")) return "section";
+    if (/^https?:\/\/(?:www\.)?(?:wa\.me|api\.whatsapp\.com)\b/i.test(link)) return "whatsapp";
+    if (/^tel:/i.test(link)) return "phone";
+    if (/^mailto:/i.test(link)) return "email";
+    if (/^https?:\/\//i.test(link)) return "external";
+    return "custom";
+  }
+
+  function linkEditorValue(mode, value) {
+    const link = String(value || "").trim();
+    if (mode === "whatsapp") {
+      const match = link.match(/(?:wa\.me\/|phone=)(\d+)/i);
+      return match?.[1]?.replace(/^52(?=\d{10}$)/, "") || link.replace(/\D/g, "").replace(/^52(?=\d{10}$)/, "");
+    }
+    if (mode === "phone") return link.replace(/^tel:/i, "");
+    if (mode === "email") return link.replace(/^mailto:/i, "");
+    return link;
+  }
+
+  function buildLink(mode, rawValue) {
+    const raw = String(rawValue || "").trim();
+    if (mode === "none") return { value: "", valid: true };
+    if (mode === "section") return { value: raw, valid: /^#[A-Za-z][\w:.-]*$/.test(raw) };
+    if (mode === "external") {
+      if (!raw) return { value: "", valid: false };
+      const value = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+      return { value, valid: /^https?:\/\/[^\s]+$/i.test(value) };
+    }
+    if (mode === "whatsapp") {
+      let number = raw.replace(/\D/g, "");
+      if (number.length === 10) number = `52${number}`;
+      return { value: number ? `https://wa.me/${number}` : "", valid: number.length >= 10 };
+    }
+    if (mode === "phone") {
+      const number = raw.replace(/[^\d+]/g, "");
+      return { value: number ? `tel:${number}` : "", valid: number.replace(/\D/g, "").length >= 10 };
+    }
+    if (mode === "email") {
+      const email = raw.replace(/^mailto:/i, "");
+      return { value: email ? `mailto:${email}` : "", valid: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) };
+    }
+    const safeCustom = /^(?:#|https?:\/\/|mailto:|tel:|\/|\.\/|\.\.\/|[\w.-]+\.html(?:[?#].*)?$)/i.test(raw) && !/^(?:javascript|data):/i.test(raw);
+    return { value: safeCustom ? raw : "", valid: safeCustom };
+  }
+
+  function linkSectionOptions(currentValue = "") {
+    const options = sections.length
+      ? sections.filter((section) => sectionAnchors[section.section_key]).map((section) => ({
+          value: sectionAnchors[section.section_key],
+          label: `${section.label}${section.enabled ? "" : " · oculta"}`
+        }))
+      : Object.entries(sectionAnchors).map(([key, value]) => ({ value, label: defaultSectionLabels[key] || key }));
+    if (currentValue.startsWith("#") && !options.some((option) => option.value === currentValue)) {
+      options.push({ value: currentValue, label: `Sección personalizada (${currentValue})` });
+    }
+    return options;
+  }
+
+  function refreshLinkWidget(source) {
+    const widget = source._linkWidget;
+    if (!widget) return;
+    const mode = linkMode(source.value);
+    const options = linkSectionOptions(source.value);
+    widget.mode.value = mode;
+    widget.section.innerHTML = options.map((option) => `<option value="${safe(option.value)}">${safe(option.label)}</option>`).join("");
+    widget.section.value = mode === "section" ? source.value : (options[0]?.value || "#inicio");
+    widget.value.value = linkEditorValue(mode, source.value);
+    updateLinkWidgetVisibility(source);
+    updateLinkSummary(source, true);
+  }
+
+  function updateLinkWidgetVisibility(source) {
+    const widget = source._linkWidget;
+    if (!widget) return;
+    const mode = widget.mode.value;
+    widget.sectionRow.hidden = mode !== "section";
+    widget.valueRow.hidden = !["external", "whatsapp", "phone", "email", "custom"].includes(mode);
+    const labels = {
+      external: ["Dirección externa", "https://sitio.com o sitio.com"],
+      whatsapp: ["Número de WhatsApp", "Ej. 5610329215"],
+      phone: ["Número telefónico", "Ej. 5610329215"],
+      email: ["Correo electrónico", "Ej. contacto@tienda.com"],
+      custom: ["Ruta manual", "Ej. /pagina o archivo.html"]
+    };
+    const [label, placeholder] = labels[mode] || ["Destino", ""];
+    widget.valueLabel.textContent = label;
+    widget.value.placeholder = placeholder;
+  }
+
+  function updateLinkSummary(source, preserveValue = false) {
+    const widget = source._linkWidget;
+    if (!widget) return;
+    const mode = widget.mode.value;
+    const rawValue = mode === "section" ? widget.section.value : widget.value.value;
+    const result = preserveValue ? { value: source.value, valid: true } : buildLink(mode, rawValue);
+    if (!preserveValue) source.value = result.value;
+    widget.summary.textContent = result.valid
+      ? (result.value ? `Destino guardado: ${result.value}` : "El botón quedará sin enlace.")
+      : "Completa un destino válido.";
+    widget.summary.classList.toggle("invalid", !result.valid);
+    if (!preserveValue) source.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function enhanceLinkInputs(root) {
+    if (!root) return;
+    $$('input[name$="_url"]', root).forEach((source) => {
+      if (source._linkWidget) return refreshLinkWidget(source);
+      source.type = "hidden";
+      source.dataset.linkSource = "true";
+      const widgetElement = document.createElement("div");
+      widgetElement.className = "link-builder";
+      widgetElement.innerHTML = `
+        <div class="link-control"><span>Tipo de destino</span>
+          <select data-link-mode aria-label="Tipo de destino">
+            <option value="section">Sección de esta página</option>
+            <option value="external">Enlace externo</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="phone">Llamada telefónica</option>
+            <option value="email">Correo electrónico</option>
+            <option value="none">Sin enlace</option>
+            <option value="custom">Ruta manual avanzada</option>
+          </select>
+        </div>
+        <div class="link-control" data-link-section-row><span>Sección de destino</span><select data-link-section aria-label="Sección de destino"></select></div>
+        <div class="link-control" data-link-value-row><span data-link-value-label>Dirección externa</span><input type="text" data-link-value autocomplete="off" aria-label="Dirección del enlace"></div>
+        <small class="link-summary" data-link-summary></small>`;
+      source.insertAdjacentElement("afterend", widgetElement);
+      source._linkWidget = {
+        element: widgetElement,
+        mode: $("[data-link-mode]", widgetElement),
+        section: $("[data-link-section]", widgetElement),
+        sectionRow: $("[data-link-section-row]", widgetElement),
+        value: $("[data-link-value]", widgetElement),
+        valueRow: $("[data-link-value-row]", widgetElement),
+        valueLabel: $("[data-link-value-label]", widgetElement),
+        summary: $("[data-link-summary]", widgetElement)
+      };
+      const widget = source._linkWidget;
+      widget.mode.addEventListener("change", () => {
+        if (widget.mode.value === "section" && !widget.section.value) widget.section.value = linkSectionOptions()[0]?.value || "#inicio";
+        widget.value.value = "";
+        updateLinkWidgetVisibility(source);
+        updateLinkSummary(source);
+      });
+      widget.section.addEventListener("change", () => updateLinkSummary(source));
+      widget.value.addEventListener("input", () => updateLinkSummary(source));
+      refreshLinkWidget(source);
+    });
   }
 
   async function loadEditorData() {
@@ -146,6 +327,7 @@
       form.elements.ticker_speed.value = storeSettings.ticker_speed || 22;
       $("#tickerSpeedValue").textContent = `${form.elements.ticker_speed.value} segundos`;
     }
+    enhanceLinkInputs(form);
     $("#inspectorSectionName").textContent = section.label;
     $("#sectionInspector").classList.add("open");
     markPreviewSelection(scrollPreview);
@@ -266,7 +448,21 @@
     });
     doc.querySelectorAll("[data-setting-href]").forEach((element) => {
       const key = element.dataset.settingHref;
-      if (storeSettings[key]) element.href = storeSettings[key]; else element.removeAttribute("href");
+      const link = String(storeSettings[key] || "").trim();
+      if (link) {
+        element.href = link;
+        if (/^https?:\/\//i.test(link)) {
+          element.target = "_blank";
+          element.rel = "noopener noreferrer";
+        } else {
+          element.removeAttribute("target");
+          element.removeAttribute("rel");
+        }
+      } else {
+        element.removeAttribute("href");
+        element.removeAttribute("target");
+        element.removeAttribute("rel");
+      }
     });
     doc.querySelectorAll("[data-setting-placeholder]").forEach((element) => {
       const key = element.dataset.settingPlaceholder;
@@ -427,6 +623,7 @@
     const form = $("#eventForm"); form.reset(); form.elements.active.checked = true; form.elements.sort_order.value = 0; form.elements.location.value = "Fantasmas Biker's Shop"; form.elements.button_text.value = "Más información"; form.elements.button_url.value = "https://wa.me/525610329215";
     $("#eventDialogTitle").textContent = item ? "Editar evento" : "Nuevo evento";
     if (item) { ["id","title","description","location","button_text","button_url","sort_order"].forEach((key) => form.elements[key].value = item[key] ?? ""); form.elements.event_date.value = localDate(item.event_date); form.elements.end_date.value = localDate(item.end_date); form.elements.active.checked = item.active; form.elements.current_image_url.value = item.image_url || ""; form.elements.current_image_path.value = item.image_path || ""; }
+    enhanceLinkInputs(form);
     $("#eventStatus").textContent = ""; $("#eventDialog").showModal();
   }
 
@@ -470,6 +667,8 @@
     if (button.dataset.editEvent) openEvent(events.find((x) => x.id === button.dataset.editEvent));
     if (button.dataset.toggleEvent) { const item = events.find((x) => x.id === button.dataset.toggleEvent); await client.from("shop_events").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id); await loadEditorData(); }
     if (button.dataset.deleteEvent) { const item = events.find((x) => x.id === button.dataset.deleteEvent); if (confirm(`¿Eliminar el evento “${item.title}”?`)) { await client.from("shop_events").delete().eq("id", item.id); if (item.image_path) await client.storage.from("shop-media").remove([item.image_path]); await loadEditorData(); } }
+    if (button.id === "newPromotionButton" || button.dataset.editPromotion) setTimeout(() => enhanceLinkInputs($("#promotionForm")), 0);
+    if (button.dataset.view === "settings") setTimeout(() => enhanceLinkInputs($("#settingsForm")), 0);
   });
 
   $("#sitePreview").addEventListener("load", preparePreview);

@@ -1,0 +1,31 @@
+SELECTOR DE DESTINOS PARA BOTONES — FANTASMAS BIKER'S SHOP
+
+ARCHIVOS A REEMPLAZAR EN LA RAÍZ DE GITHUB
+- editor.js
+- editor.css
+- index.html
+- public-data.js
+- editor-public.css
+
+No reemplaces supabase-config.js.
+No necesitas ejecutar ningún archivo SQL.
+
+CÓMO USARLO
+1. Entra al panel y abre “Diseñar página”.
+2. Selecciona la sección donde está el botón o enlace.
+3. En “Tipo de destino” elige una opción:
+   - Sección de esta página: selecciona Rifas, Productos, Eventos, Contacto, etc.
+   - Enlace externo: escribe una página como https://ejemplo.com.
+   - WhatsApp: escribe solamente el número.
+   - Llamada telefónica: escribe el número.
+   - Correo electrónico: escribe el correo.
+   - Sin enlace: el botón queda visible, pero no abre ningún destino.
+   - Ruta manual avanzada: para rutas especiales.
+4. Pulsa “Publicar cambios”.
+
+El editor genera automáticamente códigos como #rifas. Ya no necesitas escribirlos.
+Los enlaces internos se abren en la misma página y los externos en una pestaña nueva.
+
+También funciona en los botones de promociones, mini eventos y en los enlaces del apartado “Información”.
+
+Después de subir los archivos, espera el despliegue de Cloudflare Pages y presiona Ctrl + F5.
