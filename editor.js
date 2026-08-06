@@ -320,6 +320,7 @@
         <span class="drag-handle" title="${fixedSections.has(section.section_key) ? "Posición fija" : "Arrastrar"}">${fixedSections.has(section.section_key) ? "🔒" : "⠿"}</span>
         <div class="section-identity"><b>${safe(section.label)}</b><small>${safe(section.enabled ? `${section.layout}${isCustomSection(section) ? " · PERSONALIZADA" : ""}` : "OCULTA")}</small></div>
         <button class="section-visible${section.enabled ? "" : " off"}" type="button" data-toggle-section="${safe(section.section_key)}" title="${section.enabled ? "Ocultar" : "Mostrar"}">${section.enabled ? "●" : "○"}</button>
+        <button class="section-delete" type="button" data-delete-section="${safe(section.section_key)}" title="Eliminar definitivamente" aria-label="Eliminar ${safe(section.label)}">×</button>
       </article>`).join("");
     bindSectionDrag();
   }
@@ -578,11 +579,14 @@
     $("#sectionEditorStatus").textContent = "Imagen retirada sin publicar";
   }
 
-  function deleteCustomSection() {
-    const section = selectedCustomSection();
+  function deleteSection(sectionKey = selectedSectionKey) {
+    const section = sections.find((item) => item.section_key === sectionKey);
     if (!section || !confirm(`¿Eliminar la sección “${section.label}”?`)) return;
-    const content = normalizeCustomContent(section);
-    if (content.image_path) pendingMediaRemovals.add(content.image_path);
+    if (!confirm("Esta acción la quitará definitivamente de la página cuando publiques los cambios. ¿Deseas continuar?")) return;
+    if (isCustomSection(section)) {
+      const content = normalizeCustomContent(section);
+      if (content.image_path) pendingMediaRemovals.add(content.image_path);
+    }
     deletedSectionKeys.add(section.section_key);
     const index = sections.findIndex((item) => item.section_key === section.section_key);
     sections.splice(index, 1);
@@ -913,7 +917,8 @@
     if (button.id === "newSectionButton") createCustomSection();
     if (button.id === "addCustomButton") addCustomButton();
     if (button.id === "removeCustomImage") removeCustomSectionImage();
-    if (button.id === "deleteCustomSection") deleteCustomSection();
+    if (button.id === "deleteSectionButton") deleteSection();
+    if (button.dataset.deleteSection) deleteSection(button.dataset.deleteSection);
     if (button.dataset.removeCustomButton !== undefined) changeCustomButton(button.closest("[data-custom-button]")?.dataset.customButton, "remove");
     if (button.dataset.moveCustomButton) changeCustomButton(button.closest("[data-custom-button]")?.dataset.customButton, button.dataset.moveCustomButton);
     if (button.dataset.toggleSection) { const section = sections.find((item) => item.section_key === button.dataset.toggleSection); section.enabled = !section.enabled; renderSections(); selectSection(section.section_key, false); applyPreviewSections(); $("#sectionEditorStatus").textContent = "Cambios sin publicar"; }

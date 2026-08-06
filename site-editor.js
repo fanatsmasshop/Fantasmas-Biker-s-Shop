@@ -4,6 +4,7 @@
   const escapeHtml = (text) => String(text || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   const isCustom = (section) => Boolean(section && (section.section_type === "custom" || String(section.section_key || "").startsWith("custom_")));
   const sectionContent = (section) => section?.content && typeof section.content === "object" && !Array.isArray(section.content) ? section.content : {};
+  const systemSectionKeys = ["header","hero","announcement","promotions","raffles","anniversary","catalog_intro","products","events","rewards","allies","contact","footer"];
   const safeId = (value, fallback) => /^[A-Za-z][\w:.-]*$/.test(String(value || "")) ? String(value) : fallback;
   const safeMedia = (value) => /^https?:\/\/[^\s]+$/i.test(String(value || "").trim()) ? String(value).trim() : "";
   const safeHref = (value) => {
@@ -63,6 +64,10 @@
   }
 
   function applySections(data) {
+    const currentKeys = new Set(data.map((settings) => settings.section_key));
+    systemSectionKeys.forEach((sectionKey) => {
+      if (!currentKeys.has(sectionKey)) document.querySelector(`[data-section-key="${sectionKey}"]`)?.remove();
+    });
     renderCustomSections(data);
     const state = {};
     data.forEach((settings) => {

@@ -1,0 +1,26 @@
+FANTASMAS BIKER'S SHOP — BORRADO DEFINITIVO DE SECCIONES V4.1
+
+ARCHIVOS QUE DEBES SUBIR A LA RAÍZ DE GITHUB
+
+1. admin.html
+2. editor.js
+3. editor.css
+4. site-editor.js
+
+No ejecutes ningún SQL para esta actualización.
+No reemplaces supabase-config.js.
+
+CÓMO BORRAR UNA SECCIÓN
+
+1. Abre Panel administrativo > Editor de página.
+2. En la lista Secciones, pulsa la X rosa del bloque que quieras borrar.
+   También puedes seleccionarlo y usar "Eliminar esta sección definitivamente".
+3. Confirma los dos avisos de seguridad.
+4. Pulsa "Publicar cambios".
+
+La sección se elimina de Supabase y también de la página pública. Esto funciona
+con las secciones originales y con las secciones personalizadas. Si la sección
+personalizada tenía una imagen, el archivo también se retira del almacenamiento
+al publicar.
+
+Después del despliegue de Cloudflare, actualiza con Ctrl + F5.
