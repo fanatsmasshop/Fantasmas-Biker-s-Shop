@@ -1,0 +1,51 @@
+FANTASMAS BIKER'S SHOP — CONFIGURACIÓN DEL PANEL
+
+La dirección del proyecto de Supabase ya está colocada.
+Falta únicamente copiar la Publishable key.
+
+1. SUPABASE: CREAR LAS TABLAS
+- Abre tu proyecto Fantasmas-Biker-s-Shop.
+- Entra a SQL Editor.
+- Selecciona New query.
+- Copia todo el contenido de database.sql.
+- Presiona Run.
+
+2. SUPABASE: CREAR EL USUARIO ADMINISTRADOR
+- Entra a Authentication > Users.
+- Presiona Add user > Create new user.
+- Escribe el correo y contraseña que utilizarás para el panel.
+- Activa Auto Confirm User.
+- Crea el usuario.
+- Abre el usuario y copia su User UID.
+- Vuelve a SQL Editor y ejecuta:
+
+insert into public.shop_admins (user_id, display_name)
+values ('PEGA_AQUI_EL_USER_UID', 'Fantasmas Biker''s Shop');
+
+3. COLOCAR LA PUBLISHABLE KEY
+- En la portada del proyecto, presiona Connect.
+- Copia Publishable key.
+- Abre supabase-config.js.
+- Sustituye PON_AQUI_TU_PUBLISHABLE_KEY por la clave copiada.
+- No utilices ni publiques la service_role key.
+
+4. SUBIR A GITHUB
+- Sube todos los archivos de esta actualización a la raíz.
+- Reemplaza index.html.
+- Cloudflare Pages realizará el despliegue automáticamente.
+
+5. ENTRAR AL PANEL
+- Abre: https://TU-DOMINIO.pages.dev/admin.html
+- Inicia sesión con el usuario creado en Authentication.
+
+FUNCIONES INCLUIDAS
+- Productos: crear, editar, mostrar, ocultar, destacar y eliminar.
+- Fotografías de productos guardadas en Supabase Storage.
+- Promociones: crear, editar, activar, desactivar, vigencia e imagen.
+- Información: anuncio, teléfonos y dirección.
+- Página pública conectada a productos y promociones activas.
+
+SIGUIENTE FASE
+- Administración completa de rifas y números.
+- Registro de apartados y pagos.
+- Historial de cambios y permisos para más personal.

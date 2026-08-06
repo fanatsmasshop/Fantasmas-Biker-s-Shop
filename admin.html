@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07080b">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Panel administrativo | Fantasmas Biker's Shop</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <section class="login" id="loginView">
+    <form class="login-card" id="loginForm">
+      <img src="logo-nombre.png" alt="Fantasmas Biker's Shop">
+      <p class="eyebrow">ACCESO PRIVADO</p>
+      <h1>Panel de la tienda</h1>
+      <p>Administra productos, promociones e información pública.</p>
+      <label>Correo electrónico<input type="email" id="loginEmail" autocomplete="username" required></label>
+      <label>Contraseña<input type="password" id="loginPassword" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">Entrar al panel</button>
+      <p class="message" id="loginMessage"></p>
+      <a href="index.html">← Volver a la tienda</a>
+    </form>
+  </section>
+
+  <div class="admin-app" id="adminApp" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="side-logo"><img src="logo-nombre.png" alt="Fantasmas Biker's Shop"><button id="closeMenu" aria-label="Cerrar menú">×</button></div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard">▦ <span>Resumen</span></button>
+        <button class="nav-item" data-view="products">◈ <span>Productos</span></button>
+        <button class="nav-item" data-view="promotions">⚡ <span>Promociones</span></button>
+        <button class="nav-item" data-view="settings">⚙ <span>Información</span></button>
+      </nav>
+      <div class="side-bottom"><a href="index.html" target="_blank">Ver página pública ↗</a><button id="logoutButton">Cerrar sesión</button></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><button id="openMenu" aria-label="Abrir menú">☰</button><div><p>FANTASMAS BIKER'S SHOP</p><b id="viewTitle">Resumen</b></div><span id="adminEmail"></span></header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="page-head"><div><p class="eyebrow">PANEL ADMINISTRATIVO</p><h1>Resumen de la tienda</h1></div><button class="secondary refresh-data">Actualizar datos</button></div>
+        <div class="stats">
+          <article><span>PRODUCTOS</span><strong id="totalProducts">0</strong><small id="activeProducts">0 activos</small></article>
+          <article><span>PROMOCIONES</span><strong id="totalPromotions">0</strong><small id="activePromotions">0 activas</small></article>
+          <article><span>DESTACADOS</span><strong id="featuredProducts">0</strong><small>en la portada</small></article>
+        </div>
+        <div class="welcome"><div><p class="eyebrow">CENTRO DE CONTROL</p><h2>Publica sin editar código.</h2><p>Los cambios realizados aquí se guardan en Supabase y aparecen en la página pública. Las fotografías se almacenan en el espacio privado de administración de la tienda.</p></div><img src="logo-shop.png" alt="Fantasmas Biker's Shop"></div>
+      </section>
+
+      <section class="view" id="view-products">
+        <div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Productos</h1></div><button class="primary" id="newProductButton">+ Nuevo producto</button></div>
+        <div class="toolbar"><input id="productSearch" type="search" placeholder="Buscar producto..."><select id="productFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Ocultos</option><option value="featured">Destacados</option></select></div>
+        <div class="admin-list" id="productsList"></div>
+      </section>
+
+      <section class="view" id="view-promotions">
+        <div class="page-head"><div><p class="eyebrow">CAMPAÑAS</p><h1>Promociones</h1></div><button class="primary" id="newPromotionButton">+ Nueva promoción</button></div>
+        <div class="admin-list" id="promotionsList"></div>
+      </section>
+
+      <section class="view" id="view-settings">
+        <div class="page-head"><div><p class="eyebrow">DATOS PÚBLICOS</p><h1>Información</h1></div></div>
+        <form class="settings-form" id="settingsForm">
+          <label class="wide">Anuncio principal<input name="announcement" placeholder="Ej. Aniversario · 24 de agosto"></label>
+          <label>WhatsApp principal<input name="whatsapp" inputmode="numeric"></label>
+          <label>Teléfono de catálogo<input name="catalog_phone" inputmode="numeric"></label>
+          <label>Diseño e impresión<input name="design_phone" inputmode="numeric"></label>
+          <label class="wide">Dirección<textarea name="address" rows="3"></textarea></label>
+          <button class="primary" type="submit">Guardar información</button><span class="form-status" id="settingsStatus"></span>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="productDialog">
+    <form class="dialog-form" id="productForm">
+      <div class="dialog-head"><div><p class="eyebrow">CATÁLOGO</p><h2 id="productDialogTitle">Nuevo producto</h2></div><button type="button" class="icon-button close-dialog">×</button></div>
+      <input type="hidden" name="id"><input type="hidden" name="current_image_url"><input type="hidden" name="current_image_path">
+      <div class="form-grid">
+        <label class="wide">Nombre del producto<input name="name" required maxlength="120"></label>
+        <label>Categoría<input name="category" value="General" required maxlength="60"></label>
+        <label>Orden<input name="sort_order" type="number" value="0"></label>
+        <label>Precio actual<input name="price" type="number" min="0" step="0.01"></label>
+        <label>Precio anterior<input name="previous_price" type="number" min="0" step="0.01"></label>
+        <label class="wide">Descripción<textarea name="description" rows="4" maxlength="500"></textarea></label>
+        <label class="wide file-label">Fotografía<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
+        <label class="check"><input name="active" type="checkbox" checked> Visible en la página</label>
+        <label class="check"><input name="featured" type="checkbox"> Producto destacado</label>
+      </div>
+      <div class="dialog-actions"><span class="form-status" id="productStatus"></span><button type="button" class="secondary close-dialog">Cancelar</button><button class="primary" type="submit">Guardar producto</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="promotionDialog">
+    <form class="dialog-form" id="promotionForm">
+      <div class="dialog-head"><div><p class="eyebrow">CAMPAÑAS</p><h2 id="promotionDialogTitle">Nueva promoción</h2></div><button type="button" class="icon-button close-dialog">×</button></div>
+      <input type="hidden" name="id"><input type="hidden" name="current_image_url"><input type="hidden" name="current_image_path">
+      <div class="form-grid">
+        <label class="wide">Título<input name="title" required maxlength="120"></label>
+        <label class="wide">Descripción<textarea name="subtitle" rows="3" maxlength="500"></textarea></label>
+        <label>Etiqueta<input name="badge" value="PROMOCIÓN" maxlength="40"></label>
+        <label>Orden<input name="sort_order" type="number" value="0"></label>
+        <label>Texto del botón<input name="button_text" value="Pedir por WhatsApp"></label>
+        <label>Enlace del botón<input name="button_url" value="https://wa.me/525610329215"></label>
+        <label>Inicio de vigencia<input name="starts_at" type="datetime-local"></label>
+        <label>Fin de vigencia<input name="ends_at" type="datetime-local"></label>
+        <label class="wide file-label">Imagen opcional<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
+        <label class="check"><input name="active" type="checkbox" checked> Promoción activa</label>
+      </div>
+      <div class="dialog-actions"><span class="form-status" id="promotionStatus"></span><button type="button" class="secondary close-dialog">Cancelar</button><button class="primary" type="submit">Guardar promoción</button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
+
