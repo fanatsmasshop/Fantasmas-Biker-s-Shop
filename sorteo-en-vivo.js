@@ -1,7 +1,9 @@
 (async function () {
   const config = window.FANTASMAS_SUPABASE || {};
   const $ = (selector) => document.querySelector(selector);
-  const raffleId = new URLSearchParams(location.search).get("id");
+  const query = new URLSearchParams(location.search);
+  const raffleId = query.get("id");
+  const isDemo = query.get("demo") === "1";
   const client = window.supabase?.createClient(config.url, config.publishableKey);
   let lastRevision = -1;
   let countdownTimer = null;
@@ -147,6 +149,17 @@
   };
   clock();
   setInterval(clock, 1000);
+
+  if (isDemo) {
+    document.body.classList.add("demo-broadcast");
+    applyState({ phase: "idle", revision: 1, current_prize: "Premio de demostración" });
+    window.addEventListener("message", (event) => {
+      if (event.origin !== location.origin || event.data?.type !== "fantasmas-demo-state") return;
+      applyState(event.data.state);
+    });
+    window.parent.postMessage({ type: "fantasmas-demo-ready" }, location.origin);
+    return;
+  }
 
   await refresh();
   client

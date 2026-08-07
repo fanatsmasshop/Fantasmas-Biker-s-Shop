@@ -5,7 +5,7 @@
   const {data:{session}}=await client.auth.getSession();if(!session)return location.href="admin.html";
   const {data:admin}=await client.from("shop_admins").select("user_id").eq("user_id",session.user.id).maybeSingle();if(!admin)return fail("Tu sesión no tiene permiso de administrador.");
   const {data:r}=await client.from("shop_raffles").select("*").eq("id",raffleId).maybeSingle();if(!r)return fail("No encontramos esa rifa.");raffle=r;
-  $("#raffleName").textContent=raffle.main_prize;$("#publicRaffleLink").href=`rifa.html?id=${raffleId}`;$("#broadcastLink").href=`sorteo-en-vivo.html?id=${raffleId}`;
+  $("#raffleName").textContent=raffle.main_prize;$("#publicRaffleLink").href=`rifa.html?id=${raffleId}`;$("#simulationLink").href=`simulador-sorteo.html?id=${raffleId}`;$("#broadcastLink").href=`sorteo-en-vivo.html?id=${raffleId}`;
   prizes=String(raffle.secondary_prizes||"").split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean);prizes.push(raffle.main_prize);$("#prizeSelect").innerHTML=prizes.map((p,i)=>`<option value="${i+1}">${i+1}. ${p}${i===prizes.length-1?" · PRINCIPAL":""}</option>`).join("");
   const esc=v=>String(v||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
   async function loadNumbers(){const {data,error}=await client.rpc("admin_shop_raffle_numbers",{p_raffle_id:raffleId});if(error)throw error;numbers=data||[];renderNumbers();}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07080b">
+  <title>Simulador de sorteo | Fantasmas Biker's Shop</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="simulador-sorteo.css?v=11.2">
+</head>
+<body>
+  <header class="sim-header">
+    <img src="logo-nombre.png" alt="Fantasmas Biker's Shop">
+    <div><span>MODO SIMULACIÓN</span><a id="backToControl">← Volver al control real</a></div>
+  </header>
+
+  <main class="sim-layout">
+    <aside class="sim-controls">
+      <p class="eyebrow">ENSAYO DEL EVENTO</p>
+      <h1>Simulador de transmisión</h1>
+      <div class="safe-notice"><b>✓ Prueba segura</b><span>No registra ganadores, no aparta números y no modifica pedidos.</span></div>
+
+      <label>Premio que aparecerá
+        <input id="demoPrize" value="Casco biker · Premio principal" maxlength="180">
+      </label>
+      <div class="field-row">
+        <label>Número ganador<input id="demoNumber" type="number" min="1" max="999" value="17"></label>
+        <label>Nombre público<input id="demoWinner" value="L••••N" maxlength="80"></label>
+      </div>
+
+      <button class="auto-demo" id="runFullDemo" type="button">▶ Ver simulación completa</button>
+      <div class="manual-buttons">
+        <button data-demo-phase="idle" type="button">Espera</button>
+        <button data-demo-phase="countdown" type="button">Cuenta regresiva</button>
+        <button data-demo-phase="spinning" type="button">Girar ruleta</button>
+        <button data-demo-phase="winner" type="button">Mostrar ganador</button>
+        <button data-demo-phase="finished" type="button">Finalizar</button>
+      </div>
+
+      <div class="preview-options">
+        <b>Formato de prueba</b>
+        <button class="active" data-preview-size="landscape" type="button">16:9 · Transmisión</button>
+        <button data-preview-size="mobile" type="button">9:16 · Celular</button>
+        <button id="openFullscreen" type="button">Pantalla completa</button>
+      </div>
+      <p id="demoStatus">Esperando que cargue la pantalla…</p>
+    </aside>
+
+    <section class="preview-area">
+      <div class="screen-label"><span>VISTA PREVIA</span><b id="previewResolution">16:9</b></div>
+      <div class="screen-frame landscape" id="screenFrame">
+        <iframe id="broadcastPreview" title="Simulación de pantalla en vivo"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script src="simulador-sorteo.js?v=11.2"></script>
+</body>
+</html>

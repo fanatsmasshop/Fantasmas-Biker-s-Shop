@@ -1,0 +1,43 @@
+FANTASMAS BIKER'S SHOP — SIMULADOR Y ADAPTACIÓN V11.2
+======================================================
+
+Esta actualización mejora el ajuste de la pantalla del sorteo y agrega un
+simulador seguro. No cambia Supabase, Worker, pagos, pedidos ni números.
+
+SUBE A LA RAÍZ DE GITHUB LOS ARCHIVOS DEL ZIP
+
+Reemplaza los que ya existan y agrega los nuevos. Después espera el despliegue
+de Cloudflare Pages y pulsa Ctrl + F5.
+
+CÓMO ABRIR EL SIMULADOR
+
+1. Entra al panel administrativo.
+2. Abre Rifas.
+3. Pulsa “Números y sorteo”.
+4. En la barra superior pulsa “Simular evento”.
+5. Pulsa “Ver simulación completa”.
+
+La simulación reproduce:
+
+- Cuenta regresiva.
+- Giro y cambio rápido de números.
+- Revelación del ganador.
+- Destello y partículas.
+- Premio y nombre elegidos por ti.
+
+También puedes probar cada etapa manualmente, cambiar entre 16:9 y 9:16 y
+abrir la vista previa en pantalla completa.
+
+IMPORTANTE
+
+El simulador no registra ganadores, no cambia estados, no aparta números y no
+envía correos. Para el evento real sigue usando “Pantalla en vivo” y los
+controles reales de la rifa.
+
+ADAPTACIÓN MEJORADA
+
+- Ajuste completo en 1366 × 768.
+- Ajuste completo en 1920 × 1080.
+- Tamaño calculado por ancho y altura disponible.
+- Textos largos reducidos y acomodados automáticamente.
+- Vista vertical especial para celular.
