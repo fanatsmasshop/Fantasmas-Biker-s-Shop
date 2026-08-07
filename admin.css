@@ -322,6 +322,34 @@ button {
   display: grid;
   gap: 12px;
 }
+.catalog-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+}
+.catalog-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.catalog-pagination button {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  background: #191c22;
+  color: white;
+  font-size: 10px;
+}
+.catalog-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: .35;
+}
 .empty {
   padding: 50px;
   border: 1px dashed #363b46;
@@ -739,6 +767,12 @@ dialog::backdrop {
   }
   .toolbar select {
     width: 100%;
+  }
+  .catalog-pagination,
+  .catalog-pagination > div {
+    align-items: stretch;
+    flex-direction: column;
+    text-align: center;
   }
   .welcome h2 {
     font-size: 34px;

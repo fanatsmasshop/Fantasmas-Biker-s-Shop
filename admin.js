@@ -9,6 +9,8 @@
   const adminApp = $("#adminApp");
   let client = null;
   let products = [];
+  let productPage = 1;
+  const PRODUCTS_PER_PAGE = 25;
   let promotions = [];
   let orders = [];
   let storeSettings = {};
@@ -36,6 +38,26 @@
     const date = new Date(value);
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return local.toISOString().slice(0, 16);
+  }
+
+  async function fetchAllProducts() {
+    const rows = [];
+    let offset = 0;
+    let total = null;
+    for (let request = 0; request < 500; request += 1) {
+      const { data, error, count } = await client.from("shop_products")
+        .select("*", { count: request === 0 ? "exact" : undefined })
+        .order("sort_order").order("created_at", { ascending: false }).order("id")
+        .range(offset, offset + 499);
+      if (error) throw error;
+      if (request === 0 && Number.isFinite(count)) total = count;
+      if (!data?.length) break;
+      rows.push(...data);
+      offset += data.length;
+      if (total !== null && offset >= total) break;
+      if (total === null && data.length < 500) break;
+    }
+    return rows;
   }
 
   function showConfigurationError() {
@@ -90,9 +112,11 @@
   }
 
   async function loadProducts() {
-    const { data, error } = await client.from("shop_products").select("*").order("sort_order").order("created_at", { ascending: false });
-    if (error) return toast(`No se pudieron cargar los productos: ${error.message}`, true);
-    products = data || [];
+    try {
+      products = await fetchAllProducts();
+    } catch (error) {
+      return toast(`No se pudieron cargar los productos: ${error.message}`, true);
+    }
     renderProducts();
   }
 
@@ -150,12 +174,100 @@
       return matchSearch && matchFilter;
     });
 
-    $("#productsList").innerHTML = visible.length ? visible.map((product) => `
+    const totalPages = Math.max(1, Math.ceil(visible.length / PRODUCTS_PER_PAGE));
+    productPage = Math.min(Math.max(1, productPage), totalPages);
+    const start = (productPage - 1) * PRODUCTS_PER_PAGE;
+    const pageRows = visible.slice(start, start + PRODUCTS_PER_PAGE);
+
+    $("#productsList").innerHTML = pageRows.length ? pageRows.map((product) => `
       <article class="list-card">
         <div class="list-image">${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="">` : "☠"}</div>
         <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${escapeHtml(product.category)} · Orden ${product.sort_order} · ${product.stock === null || product.stock === undefined ? "Existencias sin límite" : `${product.stock} disponibles`}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}<span class="badge ${product.online_sale === false ? "inactive" : "active"}">${product.online_sale === false ? "SIN CARRITO" : "VENTA ONLINE"}</span></div></div>
         <div class="list-actions"><button data-edit-product="${product.id}">Editar</button><button data-toggle-product="${product.id}">${product.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-product="${product.id}">Eliminar</button></div>
       </article>`).join("") : '<div class="empty">No hay productos que coincidan.</div>';
+    $("#productsPagination").innerHTML = visible.length ? `
+      <span>Mostrando ${start + 1}–${Math.min(start + PRODUCTS_PER_PAGE, visible.length)} de <b>${visible.length}</b></span>
+      <div><button type="button" data-product-page="prev" ${productPage === 1 ? "disabled" : ""}>← Anterior</button><b>Página ${productPage} de ${totalPages}</b><button type="button" data-product-page="next" ${productPage === totalPages ? "disabled" : ""}>Siguiente →</button></div>` : "";
+  }
+
+  function parseCsv(text) {
+    const source = String(text || "").replace(/^\uFEFF/, "");
+    const firstLine = source.split(/\r?\n/, 1)[0] || "";
+    const delimiter = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ";" : ",";
+    const rows = [];
+    let row = [], cell = "", quoted = false;
+    for (let index = 0; index < source.length; index += 1) {
+      const char = source[index];
+      if (char === '"') {
+        if (quoted && source[index + 1] === '"') { cell += '"'; index += 1; }
+        else quoted = !quoted;
+      } else if (char === delimiter && !quoted) { row.push(cell.trim()); cell = ""; }
+      else if ((char === "\n" || char === "\r") && !quoted) {
+        if (char === "\r" && source[index + 1] === "\n") index += 1;
+        row.push(cell.trim()); cell = "";
+        if (row.some(Boolean)) rows.push(row);
+        row = [];
+      } else cell += char;
+    }
+    row.push(cell.trim());
+    if (row.some(Boolean)) rows.push(row);
+    return rows;
+  }
+
+  const csvBoolean = (value, fallback) => {
+    if (value === undefined || value === null || value === "") return fallback;
+    return !["0", "false", "no", "inactivo", "oculto"].includes(String(value).trim().toLowerCase());
+  };
+  const csvNumber = (value) => {
+    const source = String(value ?? "").trim();
+    if (!source) return null;
+    const normalized = source.replace(/[$\s]/g, "").replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "");
+    const result = Number(normalized);
+    return Number.isFinite(result) ? result : null;
+  };
+
+  async function importProductsCsv(file) {
+    const rows = parseCsv(await file.text());
+    if (rows.length < 2) throw new Error("El CSV no contiene productos.");
+    const headers = rows.shift().map((value) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_"));
+    const read = (row, names) => {
+      const index = names.map((name) => headers.indexOf(name)).find((position) => position >= 0);
+      return index === undefined ? "" : row[index];
+    };
+    const imported = rows.map((row, index) => {
+      const name = read(row, ["nombre", "name"]).trim();
+      if (!name) throw new Error(`La fila ${index + 2} no tiene nombre.`);
+      return {
+        name,
+        category: read(row, ["categoria", "category"]).trim() || "General",
+        description: read(row, ["descripcion", "description"]).trim(),
+        price: csvNumber(read(row, ["precio", "price"])),
+        previous_price: csvNumber(read(row, ["precio_anterior", "previous_price"])),
+        stock: csvNumber(read(row, ["existencias", "stock"])),
+        sort_order: csvNumber(read(row, ["orden", "sort_order"])) || 0,
+        active: csvBoolean(read(row, ["visible", "activo", "active"]), true),
+        featured: csvBoolean(read(row, ["destacado", "featured"]), false),
+        online_sale: csvBoolean(read(row, ["venta_online", "online_sale"]), true),
+        image_url: read(row, ["imagen_url", "image_url"]).trim() || null,
+        updated_at: new Date().toISOString()
+      };
+    });
+    if (imported.length > 1000) throw new Error("Importa máximo 1,000 productos por archivo.");
+    if (!confirm(`Se agregarán ${imported.length} productos. ¿Continuar?`)) return 0;
+    for (let index = 0; index < imported.length; index += 100) {
+      const { error } = await client.from("shop_products").insert(imported.slice(index, index + 100));
+      if (error) throw new Error(`No se pudo importar el bloque ${Math.floor(index / 100) + 1}: ${error.message}`);
+    }
+    return imported.length;
+  }
+
+  function downloadProductsTemplate() {
+    const content = '\uFEFFnombre;categoria;descripcion;precio;precio_anterior;existencias;orden;visible;destacado;venta_online;imagen_url\nEjemplo de producto;Accesorios;Descripción del producto;120;;10;0;si;no;si;';
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+    link.download = "plantilla-productos-fantasmas.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   function renderPromotions() {
@@ -357,6 +469,11 @@
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
     if (!button) return;
+    if (button.matches("[data-product-page]")) {
+      productPage += button.dataset.productPage === "next" ? 1 : -1;
+      renderProducts();
+      $("#view-products").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     if (button.matches("[data-edit-product]")) openProduct(products.find((p) => p.id === button.dataset.editProduct));
     if (button.matches("[data-edit-promotion]")) openPromotion(promotions.find((p) => p.id === button.dataset.editPromotion));
     if (button.matches("[data-toggle-product]")) {
@@ -407,9 +524,24 @@
   }));
   $$(".close-dialog").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
   $("#newProductButton").addEventListener("click", () => openProduct());
+  $("#downloadProductsTemplate").addEventListener("click", downloadProductsTemplate);
+  $("#importProductsButton").addEventListener("click", () => $("#productsCsvFile").click());
+  $("#productsCsvFile").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    try {
+      const total = await importProductsCsv(file);
+      if (total) {
+        productPage = 1;
+        await loadProducts(); updateStats();
+        toast(`${total} productos importados correctamente.`);
+      }
+    } catch (error) { toast(error.message, true); }
+    event.target.value = "";
+  });
   $("#newPromotionButton").addEventListener("click", () => openPromotion());
-  $("#productSearch").addEventListener("input", renderProducts);
-  $("#productFilter").addEventListener("change", renderProducts);
+  $("#productSearch").addEventListener("input", () => { productPage = 1; renderProducts(); });
+  $("#productFilter").addEventListener("change", () => { productPage = 1; renderProducts(); });
   $("#orderSearch").addEventListener("input", renderOrders);
   $("#orderFilter").addEventListener("change", renderOrders);
   $("#refreshOrdersButton").addEventListener("click", loadOrders);

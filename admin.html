@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Panel administrativo | Fantasmas Biker's Shop</title>
   <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="admin.css?v=9">
   <link rel="stylesheet" href="editor.css">
   <style>[hidden]{display:none!important}</style>
 </head>
@@ -137,9 +137,11 @@
       </section>
 
       <section class="view" id="view-products">
-        <div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Productos</h1></div><button class="primary" id="newProductButton">+ Nuevo producto</button></div>
+        <div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Productos</h1></div><div class="head-actions"><button class="secondary" id="downloadProductsTemplate" type="button">Plantilla CSV</button><button class="secondary" id="importProductsButton" type="button">Importar CSV</button><button class="primary" id="newProductButton" type="button">+ Nuevo producto</button></div></div>
+        <input id="productsCsvFile" type="file" accept=".csv,text/csv" hidden>
         <div class="toolbar"><input id="productSearch" type="search" placeholder="Buscar producto..."><select id="productFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Ocultos</option><option value="featured">Destacados</option></select></div>
         <div class="admin-list" id="productsList"></div>
+        <div class="catalog-pagination" id="productsPagination" aria-live="polite"></div>
       </section>
 
       <section class="view" id="view-orders">
@@ -310,7 +312,7 @@
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="admin.js"></script>
+  <script src="admin.js?v=9"></script>
   <script src="editor.js"></script>
 </body>
 </html>

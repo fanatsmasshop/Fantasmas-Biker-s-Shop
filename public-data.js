@@ -6,6 +6,8 @@
   const client = window.supabase.createClient(config.url, config.publishableKey);
   let products = [];
   let selectedCategory = "Todas";
+  let visibleProductCount = 24;
+  const PRODUCTS_PER_BATCH = 24;
   let storeWhatsApp = "525610329215";
   let tickerTimer = null;
   let countdownTimer = null;
@@ -60,7 +62,8 @@
       const matchSearch = !search || `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(search);
       return matchCategory && matchSearch;
     });
-    target.innerHTML = filtered.length ? filtered.map((product) => {
+    const visible = filtered.slice(0, visibleProductCount);
+    target.innerHTML = visible.length ? visible.map((product) => {
       const hasStock = product.stock === null || product.stock === undefined || Number(product.stock) > 0;
       const canBuy = product.price !== null && product.price !== undefined && product.online_sale !== false && hasStock;
       const stockNote = product.stock === null || product.stock === undefined ? "" : Number(product.stock) > 0 ? `${product.stock} disponible${Number(product.stock) === 1 ? "" : "s"}` : "Agotado";
@@ -80,6 +83,10 @@
         </div>
       </article>`;
     }).join("") : '<p class="catalog-empty">No encontramos productos con ese filtro.</p>';
+    const controls = document.querySelector("#catalogLoadMore");
+    if (controls) controls.innerHTML = filtered.length > visible.length
+      ? `<span>Viendo ${visible.length} de ${filtered.length} productos</span><button type="button" id="loadMoreProducts">Mostrar ${Math.min(PRODUCTS_PER_BATCH, filtered.length - visible.length)} más</button>`
+      : filtered.length ? `<span>Mostrando los ${filtered.length} productos encontrados</span>` : "";
     if (products.length && canReveal(section)) section.hidden = false;
   }
 
@@ -92,9 +99,23 @@
 
   async function loadProducts() {
     await sectionsReady;
-    const { data, error } = await client.from("shop_products").select("*").eq("active", true).order("featured", { ascending: false }).order("sort_order").order("created_at", { ascending: false });
-    if (error) return;
-    products = data || [];
+    const allRows = [];
+    let offset = 0;
+    let total = null;
+    for (let request = 0; request < 500; request += 1) {
+      const { data, error, count } = await client.from("shop_products")
+        .select("*", { count: request === 0 ? "exact" : undefined })
+        .eq("active", true).order("featured", { ascending: false }).order("sort_order").order("created_at", { ascending: false }).order("id")
+        .range(offset, offset + 499);
+      if (error) return;
+      if (request === 0 && Number.isFinite(count)) total = count;
+      if (!data?.length) break;
+      allRows.push(...data);
+      offset += data.length;
+      if (total !== null && offset >= total) break;
+      if (total === null && data.length < 500) break;
+    }
+    products = allRows;
     window.FANTASMAS_PRODUCTS = products;
     renderProductFilters(); renderProducts();
     window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products }));
@@ -246,8 +267,13 @@
     window.dispatchEvent(new CustomEvent("fantasmas:settings-ready"));
   }
 
-  document.querySelector("#catalogSearch")?.addEventListener("input", renderProducts);
-  document.querySelector("#categoryFilters")?.addEventListener("click", (event) => { const button = event.target.closest("[data-public-category]"); if (!button) return; selectedCategory = button.dataset.publicCategory; renderProductFilters(); renderProducts(); });
+  document.querySelector("#catalogSearch")?.addEventListener("input", () => { visibleProductCount = PRODUCTS_PER_BATCH; renderProducts(); });
+  document.querySelector("#categoryFilters")?.addEventListener("click", (event) => { const button = event.target.closest("[data-public-category]"); if (!button) return; selectedCategory = button.dataset.publicCategory; visibleProductCount = PRODUCTS_PER_BATCH; renderProductFilters(); renderProducts(); });
+  document.querySelector("#catalogLoadMore")?.addEventListener("click", (event) => {
+    if (!event.target.closest("#loadMoreProducts")) return;
+    visibleProductCount += PRODUCTS_PER_BATCH;
+    renderProducts();
+  });
 
   (async function initializePublicStore() {
     await loadSettings();

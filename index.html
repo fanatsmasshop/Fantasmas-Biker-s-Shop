@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="logos.css">
   <link rel="stylesheet" href="dynamic.css">
-  <link rel="stylesheet" href="editor-public.css">
+  <link rel="stylesheet" href="editor-public.css?v=9">
   <link rel="stylesheet" href="shop-cart.css">
 </head>
 <body>
@@ -127,6 +127,7 @@
       </div>
       <div class="catalog-toolbar"><input id="catalogSearch" type="search" placeholder="Buscar en el catálogo..." aria-label="Buscar productos" data-setting-placeholder="products_search_placeholder"><div class="category-filters" id="categoryFilters"></div></div>
       <div class="productos-grid" id="productosDinamicos"></div>
+      <div class="catalog-load-more" id="catalogLoadMore" aria-live="polite"></div>
     </section>
 
     <section class="eventos-publicos editable-section" id="eventosPublicos" data-section-key="events" hidden>
@@ -234,7 +235,7 @@
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
   <script src="site-editor.js"></script>
-  <script src="public-data.js"></script>
+  <script src="public-data.js?v=9"></script>
   <script src="shop-cart.js"></script>
 </body>
 </html>

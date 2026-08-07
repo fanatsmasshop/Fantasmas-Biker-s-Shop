@@ -1,0 +1,53 @@
+FANTASMAS BIKER'S SHOP — ACTUALIZACIÓN V9
+CATÁLOGO PREPARADO PARA 300+ PRODUCTOS
+
+1. Sube a la raíz del repositorio estos archivos y reemplaza los anteriores:
+   - admin.html
+   - admin.js
+   - admin.css
+   - index.html
+   - public-data.js
+   - editor-public.css
+
+2. No cambies supabase-config.js.
+
+3. Espera el despliegue de Cloudflare Pages y actualiza el navegador.
+   Si aún ves la versión anterior, abre la página en modo incógnito o usa Ctrl+F5.
+
+MEJORAS INCLUIDAS
+
+- Ya no se depende de que Supabase entregue todos los productos en una sola consulta.
+- El panel reúne todas las filas aunque el límite de respuesta de Supabase sea pequeño.
+- El panel muestra 25 productos por página.
+- La tienda muestra 24 productos inicialmente y un botón “Mostrar más”.
+- La búsqueda y las categorías siguen trabajando sobre todo el catálogo.
+- El carrito puede encontrar cualquiera de los productos cargados.
+- Se agregó importación masiva mediante CSV, hasta 1,000 productos por archivo.
+
+IMPORTAR MUCHOS PRODUCTOS
+
+1. Entra al panel > Productos.
+2. Pulsa “Plantilla CSV”.
+3. Abre el archivo descargado en Excel o Google Sheets.
+4. Agrega una fila por producto sin cambiar los nombres de las columnas.
+5. Descárgalo/guárdalo como CSV.
+6. Pulsa “Importar CSV” y selecciona el archivo.
+
+Columnas disponibles:
+- nombre: obligatorio.
+- categoria: si está vacía se usa “General”.
+- descripcion.
+- precio.
+- precio_anterior: opcional.
+- existencias: vacío significa sin límite.
+- orden.
+- visible: si/no.
+- destacado: si/no.
+- venta_online: si/no.
+- imagen_url: opcional; debe ser una dirección pública completa.
+
+IMPORTANTE SOBRE FOTOGRAFÍAS
+
+La importación CSV permite usar una URL pública por producto. Si las fotografías
+todavía están en el teléfono o la computadora, se pueden agregar después al editar
+cada producto desde el panel. No se incluyó supabase-config.js en esta actualización.
