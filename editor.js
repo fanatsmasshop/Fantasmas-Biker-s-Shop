@@ -352,8 +352,8 @@
       return;
     }
     container.innerHTML = sections.map((section) => `
-      <article class="section-row${section.section_key === selectedSectionKey ? " selected" : ""}" data-section-key="${safe(section.section_key)}" draggable="${fixedSections.has(section.section_key) ? "false" : "true"}">
-        <span class="drag-handle" title="${fixedSections.has(section.section_key) ? "Posición fija" : "Arrastrar"}">${fixedSections.has(section.section_key) ? "🔒" : "⠿"}</span>
+      <article class="section-row${section.section_key === selectedSectionKey ? " selected" : ""}" data-section-key="${safe(section.section_key)}" draggable="false">
+        <span class="drag-handle" draggable="${fixedSections.has(section.section_key) ? "false" : "true"}" title="${fixedSections.has(section.section_key) ? "Posición fija" : "Arrastrar"}">${fixedSections.has(section.section_key) ? "🔒" : "⠿"}</span>
         <div class="section-identity"><b>${safe(section.label)}</b><small>${safe(section.enabled ? `${section.layout}${isCustomSection(section) ? " · PERSONALIZADA" : ""}` : "OCULTA")}</small></div>
         <button class="section-visible${section.enabled ? "" : " off"}" type="button" data-toggle-section="${safe(section.section_key)}" title="${section.enabled ? "Ocultar" : "Mostrar"}">${section.enabled ? "●" : "○"}</button>
         <button class="section-delete" type="button" data-delete-section="${safe(section.section_key)}" title="Eliminar definitivamente" aria-label="Eliminar ${safe(section.label)}">×</button>
@@ -361,9 +361,12 @@
     bindSectionDrag();
   }
 
-  function selectSection(key, scrollPreview = true) {
+  function selectSection(key, scrollPreview = true, preserveCurrent = true) {
     const section = sections.find((item) => item.section_key === key);
     if (!section) return;
+    if (preserveCurrent && selectedSectionKey && selectedSectionKey !== key) {
+      try { updateSectionFromInspector(); } catch (error) { console.warn("No se pudo conservar el bloque anterior", error); }
+    }
     selectedSectionKey = key;
     $$(".section-row", $("#sectionEditor")).forEach((row) => row.classList.toggle("selected", row.dataset.sectionKey === key));
     $("#inspectorEmpty").hidden = true;
@@ -397,6 +400,7 @@
     enhanceLinkInputs(form);
     $("#inspectorSectionName").textContent = section.label;
     $("#sectionInspector").classList.add("open");
+    requestAnimationFrame(() => { $("#sectionInspector").scrollTop = 0; });
     markPreviewSelection(scrollPreview);
   }
 
@@ -564,7 +568,7 @@
       if (visibility) { visibility.classList.toggle("off", !section.enabled); visibility.textContent = section.enabled ? "●" : "○"; }
     }
     clearTimeout(previewUpdateTimer);
-    previewUpdateTimer = setTimeout(applyPreviewSections, 90);
+    previewUpdateTimer = setTimeout(applyPreviewSections, 220);
     $("#sectionEditorStatus").textContent = "Cambios sin publicar";
   }
 
@@ -695,7 +699,7 @@
 
   function bindSectionDrag() {
     $$(".section-row", $("#sectionEditor")).forEach((row) => {
-      row.addEventListener("dragstart", (event) => { if (fixedSections.has(row.dataset.sectionKey)) { event.preventDefault(); return; } draggedKey = row.dataset.sectionKey; row.classList.add("dragging"); });
+      row.addEventListener("dragstart", (event) => { if (!event.target.closest(".drag-handle") || fixedSections.has(row.dataset.sectionKey)) { event.preventDefault(); return; } draggedKey = row.dataset.sectionKey; row.classList.add("dragging"); });
       row.addEventListener("dragend", () => { draggedKey = ""; row.classList.remove("dragging"); $$(".section-row").forEach((item) => item.classList.remove("drop-target")); });
       row.addEventListener("dragover", (event) => { if (fixedSections.has(row.dataset.sectionKey)) return; event.preventDefault(); if (draggedKey !== row.dataset.sectionKey) row.classList.add("drop-target"); });
       row.addEventListener("dragleave", () => row.classList.remove("drop-target"));
@@ -1031,6 +1035,17 @@
     if (button.id === "newPromotionButton" || button.dataset.editPromotion) setTimeout(() => enhanceLinkInputs($("#promotionForm")), 0);
     if (button.dataset.view === "settings") setTimeout(() => enhanceLinkInputs($("#settingsForm")), 0);
   });
+
+  // Selección dedicada del constructor. Se ejecuta antes que los manejadores
+  // generales para que arrastrar, la vista previa u otros botones no bloqueen
+  // el cambio del bloque mostrado en el inspector derecho.
+  $("#sectionEditor").addEventListener("click", (event) => {
+    const row = event.target.closest(".section-row");
+    if (!row || event.target.closest("[data-toggle-section],[data-delete-section]")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectSection(row.dataset.sectionKey);
+  }, true);
 
   $("#sitePreview").addEventListener("load", preparePreview);
   new MutationObserver(() => {
