@@ -11,6 +11,7 @@
   let products = [];
   let promotions = [];
   let orders = [];
+  let storeSettings = {};
 
   function toast(message, error = false) {
     const element = $("#toast");
@@ -119,8 +120,9 @@
   async function loadSettings() {
     const { data, error } = await client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle();
     if (error || !data) return;
+    storeSettings = data.setting_value || {};
     const form = $("#settingsForm");
-    Object.entries(data.setting_value || {}).forEach(([key, value]) => {
+    Object.entries(storeSettings).forEach(([key, value]) => {
       if (form.elements[key]) form.elements[key].value = value || "";
     });
   }
@@ -330,10 +332,27 @@
     const value = Object.fromEntries(new FormData(form).entries());
     $("#settingsStatus").textContent = "Guardando...";
     const { data: current } = await client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle();
-    const { error } = await client.from("shop_settings").upsert({ setting_key: "store_info", setting_value: { ...(current?.setting_value || {}), ...value }, updated_at: new Date().toISOString() });
+    const mergedSettings = { ...(current?.setting_value || {}), ...value };
+    const { error } = await client.from("shop_settings").upsert({ setting_key: "store_info", setting_value: mergedSettings, updated_at: new Date().toISOString() });
     $("#settingsStatus").textContent = error ? error.message : "Información guardada.";
-    if (!error) toast("Información pública actualizada.");
+    if (!error) { storeSettings = mergedSettings; toast("Información pública actualizada."); }
   });
+
+  async function updateOrderFromWorker(orderId, status) {
+    const worker = String(storeSettings.checkout_worker_url || "").trim().replace(/\/+$/, "");
+    if (!/^https:\/\//i.test(worker)) throw new Error("Falta configurar la URL del Worker de cobros en Información.");
+    const { data } = await client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("La sesión administrativa terminó. Vuelve a iniciar sesión.");
+    const result = await fetch(`${worker}/admin/order-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ order_id: orderId, status })
+    });
+    const response = await result.json().catch(() => ({}));
+    if (!result.ok || !response.ok) throw new Error(response.error || "No se pudo actualizar el pedido");
+    return response;
+  }
 
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
@@ -364,18 +383,20 @@
     }
     if (button.matches("[data-order-paid]")) {
       if (!confirm("¿Confirmar que este pedido ya fue pagado? También se descontarán las existencias.")) return;
-      const { error } = await client.rpc("confirm_shop_order_payment", { p_order_id: button.dataset.orderPaid, p_payment_id: `manual-${Date.now()}`, p_payment_status: "approved" });
-      if (error) return toast(error.message, true);
-      await Promise.all([loadOrders(), loadProducts()]);
-      toast("Pago confirmado y existencias actualizadas.");
+      try {
+        const result = await updateOrderFromWorker(button.dataset.orderPaid, "paid");
+        await Promise.all([loadOrders(), loadProducts()]);
+        toast(result.email_sent ? "Pago confirmado; existencias y correo actualizados." : "Pago confirmado y existencias actualizadas.");
+      } catch (error) { toast(error.message, true); }
     }
     if (button.matches("[data-order-status]")) {
       const next = button.dataset.orderStatus;
       if (next === "cancelled" && !confirm("¿Cancelar este pedido?")) return;
-      const { error } = await client.from("shop_orders").update({ status: next, updated_at: new Date().toISOString() }).eq("id", button.dataset.orderId);
-      if (error) return toast(error.message, true);
-      await loadOrders();
-      toast("Estado del pedido actualizado.");
+      try {
+        const result = await updateOrderFromWorker(button.dataset.orderId, next);
+        await loadOrders();
+        toast(result.email_sent ? "Estado actualizado y correo enviado." : "Estado del pedido actualizado.");
+      } catch (error) { toast(error.message, true); }
     }
   });
 

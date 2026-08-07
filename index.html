@@ -32,6 +32,7 @@
       <a href="#tienda" data-setting-text="nav_store_text" data-setting-href="nav_store_url">Tienda</a>
       <a href="#beneficios" data-setting-text="nav_rewards_text" data-setting-href="nav_rewards_url">Beneficios</a>
       <a href="#aliados" data-setting-text="nav_allies_text" data-setting-href="nav_allies_url">Aliados</a>
+      <a href="pedido.html">Mi pedido</a>
       <a href="#contacto" data-setting-text="nav_contact_text" data-setting-href="nav_contact_url">Contacto</a>
     </nav>
 
@@ -221,11 +222,12 @@
         <label id="quoteMethod"><input type="radio" name="payment_method" value="quote"><span><b>Solicitar cotización</b><small>Envía el carrito por WhatsApp sin pagar todavía.</small></span></label>
       </fieldset>
       <div class="checkout-summary"><span>Total de productos</span><strong id="checkoutTotal">$0</strong><small id="checkoutDeliveryNote">Recoger en tienda · sin costo de envío</small></div>
+      <label class="checkout-accept checkout-email" id="emailNotificationOption" hidden><input type="checkbox" name="email_notifications"> Quiero recibir por correo las actualizaciones de este pedido.</label>
       <label class="checkout-accept"><input type="checkbox" name="accept" required> Confirmo que mis datos y productos son correctos.</label>
       <p class="checkout-status" id="checkoutStatus"></p>
       <div class="checkout-actions"><button type="button" class="cart-secondary" id="checkoutCancelButton">Cancelar</button><button type="submit" class="cart-primary" id="checkoutSubmitButton">Continuar</button></div>
     </form>
-    <section class="transfer-result" id="transferResult" hidden><p>PEDIDO REGISTRADO</p><h2 id="transferOrderNumber"></h2><div id="bankDetails"></div><p>Envía tu comprobante por WhatsApp para confirmar el pedido.</p><a id="transferWhatsappButton" target="_blank" rel="noopener">Enviar comprobante</a><button type="button" id="transferFinishButton">Terminar</button></section>
+    <section class="transfer-result" id="transferResult" hidden><p>PEDIDO REGISTRADO</p><h2 id="transferOrderNumber"></h2><div id="bankDetails"></div><p>Envía tu comprobante por WhatsApp para confirmar el pedido.</p><a id="transferWhatsappButton" target="_blank" rel="noopener">Enviar comprobante</a><a id="transferTrackingButton">Consultar mi pedido</a><button type="button" id="transferFinishButton">Terminar</button></section>
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

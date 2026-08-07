@@ -1,0 +1,131 @@
+FANTASMAS BIKER'S SHOP
+SEGUIMIENTO DE PEDIDOS Y AVISOS POR CORREO — V7
+============================================================
+
+ESTA ACTUALIZACIÓN AGREGA
+- Página pedido.html para consultar un pedido con folio + WhatsApp.
+- Línea de progreso: recibido, pagado, preparando, listo y entregado.
+- Enlace de seguimiento después de registrar el pedido.
+- Enlace de seguimiento dentro del mensaje de WhatsApp.
+- Avisos opcionales por correo al crear o cambiar el estado del pedido.
+- Verificación administrativa antes de actualizar pedidos desde el Worker.
+
+
+PASO 1 — SUPABASE
+============================================================
+1. Abre Supabase > SQL Editor.
+2. Copia todo database_order_tracking_v7.sql.
+3. Pégalo y presiona Run.
+
+No elimina pedidos ni modifica los datos actuales.
+
+
+PASO 2 — ARCHIVOS PARA GITHUB / CLOUDFLARE PAGES
+============================================================
+Sube a la raíz y reemplaza cuando corresponda:
+
+- index.html
+- shop-cart.js
+- admin.js
+- pedido.html
+- pedido.css
+- pedido.js
+
+NO reemplaces supabase-config.js.
+
+
+PASO 3 — ACTUALIZAR EL WORKER
+============================================================
+1. Cloudflare > Workers & Pages > fantasmas-checkout.
+2. Presiona Edit code.
+3. Reemplaza el código anterior con cloudflare-mercadopago-worker.js.
+4. Presiona Deploy.
+
+Después abre:
+https://fantasmas-checkout.fantasmasbikersecatepec.workers.dev/health
+
+Sin correo configurado debe responder parecido a:
+{"ok":true,"mercado_pago":false,"email_notifications":false}
+
+La consulta de pedidos ya funciona aunque email_notifications sea false.
+
+
+PASO 4 — PROBAR LA CONSULTA
+============================================================
+1. Registra un pedido nuevo.
+2. Copia el folio FBS-XXXXXXXX.
+3. Abre:
+   https://fantasmas-biker-s-shop.pages.dev/pedido.html
+4. Escribe el folio y el mismo WhatsApp usado en el pedido.
+5. Comprueba que muestre productos, total y estado.
+6. Cambia el estado desde Panel > Pedidos y vuelve a consultar.
+
+La página pide dos datos para evitar que otra persona vea el pedido con solo
+conocer el folio.
+
+
+PASO 5 — ACTIVAR CORREOS (OPCIONAL)
+============================================================
+Para correos reales a clientes necesitas un servicio de envío. Esta versión está
+preparada para Resend.
+
+IMPORTANTE: para enviar a cualquier cliente, Resend exige verificar un dominio
+propio. El dominio de prueba resend.dev solo permite enviar al correo del dueño
+de la cuenta. Si todavía no tienes dominio, deja esta parte pendiente: el
+seguimiento web seguirá funcionando normalmente.
+
+Cuando tengas un dominio:
+
+1. Crea tu cuenta en https://resend.com
+2. En Resend > Domains agrega un dominio o subdominio, por ejemplo:
+   avisos.tudominio.com
+3. Verifica los registros DNS. Si el dominio está en Cloudflare puedes usar la
+   conexión automática ofrecida por Resend.
+4. En Resend > API Keys crea una llave.
+5. En Cloudflare > Worker fantasmas-checkout > Settings > Variables and Secrets:
+
+   Agrega como SECRET:
+   RESEND_API_KEY
+   Valor: la llave privada que empieza con re_
+
+   Agrega como TEXT:
+   EMAIL_FROM
+   Ejemplo:
+   Fantasmas Biker's Shop <pedidos@avisos.tudominio.com>
+
+6. Presiona Deploy.
+7. Vuelve a abrir /health. Ahora debe decir:
+   "email_notifications":true
+
+Cuando esté activo, en el checkout aparecerá la casilla:
+"Quiero recibir por correo las actualizaciones de este pedido".
+
+Nunca subas RESEND_API_KEY a GitHub ni la compartas por mensajes.
+
+
+AVISOS QUE SE ENVÍAN
+============================================================
+- Pedido recibido / esperando transferencia.
+- Cotización solicitada.
+- Pago confirmado.
+- En preparación.
+- Pedido listo.
+- Entregado.
+- Cancelado.
+
+Solo se envían si el cliente escribió correo y marcó voluntariamente la casilla.
+El sistema evita repetir el correo del mismo estado.
+
+
+ARCHIVOS DE ESTA ENTREGA
+============================================================
+- index.html
+- shop-cart.js
+- admin.js
+- pedido.html
+- pedido.css
+- pedido.js
+- database_order_tracking_v7.sql
+- cloudflare-mercadopago-worker.js (NO VA EN GITHUB PAGES)
+- INSTALAR_SEGUIMIENTO_Y_CORREOS_V7.txt
+

@@ -8,6 +8,7 @@
   let cart = readStorage(STORAGE_KEY, []);
   let products = Array.isArray(window.FANTASMAS_PRODUCTS) ? window.FANTASMAS_PRODUCTS : [];
   let settings = window.FANTASMAS_STORE_SETTINGS || {};
+  let emailAvailabilityWorker = "";
 
   function readStorage(key, fallback) {
     try {
@@ -117,6 +118,31 @@
     const preferred = preferredMethod === "quote" ? "quote" : mercadoVisible ? "mercadopago" : transferVisible ? "transfer" : "quote";
     const radio = $(`input[name="payment_method"][value="${preferred}"]`, $("#checkoutForm"));
     if (radio) radio.checked = true;
+    refreshEmailAvailability(workerReady ? String(settings.checkout_worker_url || "").trim().replace(/\/+$/, "") : "");
+  }
+
+  async function refreshEmailAvailability(worker) {
+    const option = $("#emailNotificationOption");
+    if (!worker) {
+      option.hidden = true;
+      option.querySelector("input").checked = false;
+      updateEmailRequired();
+      return;
+    }
+    if (emailAvailabilityWorker === worker && !option.hidden) return;
+    try {
+      const result = await fetch(`${worker}/health`);
+      const data = await result.json();
+      const available = Boolean(data.email_notifications);
+      option.hidden = !available;
+      if (!available) option.querySelector("input").checked = false;
+      emailAvailabilityWorker = available ? worker : "";
+      updateEmailRequired();
+    } catch (_) {
+      option.hidden = true;
+      option.querySelector("input").checked = false;
+      updateEmailRequired();
+    }
   }
 
   function restoreCustomer() {
@@ -137,6 +163,7 @@
     checkoutOptions(preferredMethod);
     restoreCustomer();
     updateDeliveryFields();
+    updateEmailRequired();
     dialog.showModal();
   }
 
@@ -162,12 +189,18 @@
     }
   }
 
+  function updateEmailRequired() {
+    const form = $("#checkoutForm");
+    form.elements.email.required = form.elements.email_notifications.checked;
+  }
+
   function orderPayload(form) {
     return {
       customer: { name: form.elements.name.value.trim(), phone: form.elements.phone.value.trim(), email: form.elements.email.value.trim() },
       delivery_method: form.elements.delivery_method.value,
       delivery_address: form.elements.delivery_address.value.trim(),
       notes: form.elements.notes.value.trim(),
+      email_notifications: form.elements.email_notifications.checked,
       payment_method: form.elements.payment_method.value,
       items: normalizedCart().map((item) => ({ id: item.id, quantity: item.quantity }))
     };
@@ -187,7 +220,8 @@
       payload.notes ? `Notas: ${payload.notes}` : "",
       "",
       `Cliente: ${payload.customer.name}`,
-      `Teléfono: ${payload.customer.phone}`
+      `Teléfono: ${payload.customer.phone}`,
+      orderNumber ? `Consulta tu pedido: ${location.origin}/pedido.html?folio=${encodeURIComponent(orderNumber)}` : ""
     ].filter(Boolean).join("\n");
   }
 
@@ -223,6 +257,7 @@
     $("#transferOrderNumber").textContent = order.order_number;
     $("#bankDetails").innerHTML = bankDetailsHtml();
     $("#transferWhatsappButton").href = whatsappUrl(`Hola, envío el comprobante del pedido ${order.order_number} por ${money(order.total)}.\nCliente: ${payload.customer.name}`);
+    $("#transferTrackingButton").href = `pedido.html?folio=${encodeURIComponent(order.order_number)}`;
     cart = [];
     writeStorage(STORAGE_KEY, cart);
     renderCart();
@@ -309,6 +344,7 @@
   $("#transferFinishButton").addEventListener("click", closeCheckout);
   $("#checkoutForm").addEventListener("submit", submitCheckout);
   $("#checkoutForm").elements.delivery_method.addEventListener("change", updateDeliveryFields);
+  $("#checkoutForm").elements.email_notifications.addEventListener("change", updateEmailRequired);
   $("#closePaymentNotice").addEventListener("click", () => $("#paymentReturnNotice").hidden = true);
   window.addEventListener("fantasmas:products-ready", (event) => { products = Array.isArray(event.detail) ? event.detail : []; renderCart(); });
   window.addEventListener("fantasmas:settings-ready", () => { settings = window.FANTASMAS_STORE_SETTINGS || {}; });

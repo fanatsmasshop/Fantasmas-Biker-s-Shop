@@ -1,0 +1,388 @@
+// FANTASMAS BIKER'S SHOP — WORKER SEGURO PARA MERCADO PAGO
+// Este archivo se pega en un Worker de Cloudflare. NO va en GitHub Pages.
+// Secrets: MP_ACCESS_TOKEN (opcional), SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY (opcional)
+// Variables: SUPABASE_URL, SITE_URL, ALLOWED_ORIGIN, EMAIL_FROM (opcional)
+
+const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function cleanUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+function allowedOrigin(request, env) {
+  const configured = cleanUrl(env.ALLOWED_ORIGIN || env.SITE_URL);
+  const origin = cleanUrl(request.headers.get("Origin"));
+  return origin && origin === configured ? origin : configured;
+}
+
+function response(request, env, payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      ...JSON_HEADERS,
+      "Access-Control-Allow-Origin": allowedOrigin(request, env),
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Max-Age": "86400",
+      "Vary": "Origin"
+    }
+  });
+}
+
+async function readJson(request) {
+  const length = Number(request.headers.get("Content-Length") || 0);
+  if (length > 100000) throw new Error("Solicitud demasiado grande");
+  try {
+    return await request.json();
+  } catch (_) {
+    throw new Error("Datos de pedido inválidos");
+  }
+}
+
+async function supabaseRequest(env, path, options = {}) {
+  const url = `${cleanUrl(env.SUPABASE_URL)}/rest/v1/${path}`;
+  const result = await fetch(url, {
+    ...options,
+    headers: {
+      "apikey": env.SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  const text = await result.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
+  if (!result.ok) throw new Error(data?.message || data?.hint || `Error de base de datos (${result.status})`);
+  return data;
+}
+
+function normalizeCustomer(source = {}) {
+  const name = String(source.name || "").trim().slice(0, 120);
+  const phone = String(source.phone || "").replace(/\D/g, "").slice(0, 15);
+  const email = String(source.email || "").trim().toLowerCase().slice(0, 160);
+  if (name.length < 2) throw new Error("Escribe el nombre del cliente");
+  if (phone.length < 10) throw new Error("Escribe un teléfono válido");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("El correo no es válido");
+  return { name, phone, email };
+}
+
+async function canonicalOrder(env, payload) {
+  const customer = normalizeCustomer(payload.customer);
+  const emailNotifications = Boolean(payload.email_notifications) && Boolean(customer.email);
+  const deliveryMethod = ["pickup", "shipping_quote"].includes(payload.delivery_method) ? payload.delivery_method : "pickup";
+  const address = String(payload.delivery_address || "").trim().slice(0, 500);
+  const notes = String(payload.notes || "").trim().slice(0, 500);
+  if (deliveryMethod === "shipping_quote" && address.length < 8) throw new Error("Escribe la zona o dirección para cotizar el envío");
+  if (!Array.isArray(payload.items) || payload.items.length < 1 || payload.items.length > 50) throw new Error("El carrito está vacío o es demasiado grande");
+
+  const quantities = new Map();
+  payload.items.forEach((item) => {
+    const id = String(item.id || "");
+    const quantity = Number(item.quantity);
+    if (!UUID_PATTERN.test(id) || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new Error("Hay un producto o cantidad inválida");
+    quantities.set(id, Math.min(20, (quantities.get(id) || 0) + quantity));
+  });
+
+  const ids = [...quantities.keys()];
+  const query = `shop_products?select=id,name,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`;
+  const products = await supabaseRequest(env, query);
+  if (!Array.isArray(products) || products.length !== ids.length) throw new Error("Uno de los productos ya no está disponible");
+
+  const items = products.map((product) => {
+    const quantity = quantities.get(product.id);
+    const unitPrice = Number(product.price);
+    if (!product.active || product.online_sale === false || !Number.isFinite(unitPrice) || unitPrice < 0) throw new Error(`${product.name} no está disponible para compra en línea`);
+    if (product.stock !== null && quantity > Number(product.stock)) throw new Error(`Solo quedan ${product.stock} unidades de ${product.name}`);
+    return {
+      id: product.id,
+      name: String(product.name).slice(0, 180),
+      unit_price: Math.round(unitPrice * 100) / 100,
+      quantity,
+      image_url: product.image_url || ""
+    };
+  });
+
+  const subtotal = Math.round(items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) / 100;
+  return { customer, emailNotifications, deliveryMethod, address, notes, items, subtotal };
+}
+
+async function createOrder(env, canonical, paymentMethod) {
+  const status = paymentMethod === "mercadopago" ? "pending_payment" : paymentMethod === "transfer" ? "transfer_pending" : "quote_requested";
+  const payload = {
+    customer_name: canonical.customer.name,
+    customer_phone: canonical.customer.phone,
+    customer_email: canonical.customer.email,
+    email_notifications: canonical.emailNotifications,
+    delivery_method: canonical.deliveryMethod,
+    delivery_address: canonical.address,
+    customer_notes: canonical.notes,
+    payment_method: paymentMethod,
+    status,
+    items: canonical.items,
+    subtotal: canonical.subtotal,
+    shipping_cost: null,
+    total: canonical.subtotal,
+    metadata: { source: "web_cart_v6" }
+  };
+  const rows = await supabaseRequest(env, "shop_orders?select=*", {
+    method: "POST",
+    headers: { "Prefer": "return=representation" },
+    body: JSON.stringify(payload)
+  });
+  if (!Array.isArray(rows) || !rows[0]) throw new Error("No se pudo crear el pedido");
+  return rows[0];
+}
+
+const ORDER_STATUS = {
+  pending: { label: "Pedido recibido", message: "Recibimos tu pedido y pronto lo revisaremos." },
+  pending_payment: { label: "Esperando pago", message: "Tu pedido fue creado y está esperando la confirmación del pago." },
+  transfer_pending: { label: "Esperando transferencia", message: "Recibimos tu pedido. Envía tu comprobante para confirmar el pago." },
+  quote_requested: { label: "Cotización solicitada", message: "Recibimos tu solicitud y te contactaremos para confirmar precio y entrega." },
+  paid: { label: "Pago confirmado", message: "Tu pago fue confirmado. En breve comenzaremos a preparar el pedido." },
+  processing: { label: "En preparación", message: "Ya estamos preparando tu pedido." },
+  ready: { label: "Pedido listo", message: "Tu pedido ya está listo. Si elegiste recoger, puedes pasar a la tienda." },
+  fulfilled: { label: "Pedido entregado", message: "Tu pedido fue marcado como entregado. Gracias por comprar con nosotros." },
+  cancelled: { label: "Pedido cancelado", message: "El pedido fue cancelado. Contáctanos si necesitas más información." },
+  payment_failed: { label: "Pago no completado", message: "No se pudo confirmar el pago. Puedes contactarnos para elegir otra forma de pago." }
+};
+
+function escapeEmailHtml(value) {
+  return String(value || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+
+function publicOrder(order) {
+  return {
+    order_number: order.order_number,
+    status: order.status,
+    status_label: ORDER_STATUS[order.status]?.label || order.status,
+    status_message: ORDER_STATUS[order.status]?.message || "Consulta la información actual de tu pedido.",
+    items: Array.isArray(order.items) ? order.items.map((item) => ({ name: item.name, quantity: item.quantity, unit_price: item.unit_price })) : [],
+    subtotal: order.subtotal,
+    shipping_cost: order.shipping_cost,
+    total: order.total,
+    payment_method: order.payment_method,
+    delivery_method: order.delivery_method,
+    delivery_address: order.delivery_address,
+    created_at: order.created_at,
+    updated_at: order.updated_at
+  };
+}
+
+async function sendOrderEmail(env, order) {
+  if (!order.email_notifications || !order.customer_email || !env.RESEND_API_KEY || !env.EMAIL_FROM) return false;
+  if (order.email_last_status === order.status) return false;
+  const status = ORDER_STATUS[order.status] || { label: order.status, message: "Tu pedido tiene una actualización." };
+  const trackingUrl = `${cleanUrl(env.SITE_URL)}/pedido.html?folio=${encodeURIComponent(order.order_number)}`;
+  const itemRows = (Array.isArray(order.items) ? order.items : []).map((item) => `<tr><td style="padding:8px;border-bottom:1px solid #292d36">${Number(item.quantity) || 1} × ${escapeEmailHtml(item.name)}</td><td style="padding:8px;border-bottom:1px solid #292d36;text-align:right">$${(Number(item.unit_price || 0) * Number(item.quantity || 1)).toFixed(2)}</td></tr>`).join("");
+  const html = `<!doctype html><html><body style="margin:0;background:#07080b;color:#f5f3ef;font-family:Arial,sans-serif"><div style="max-width:620px;margin:auto;padding:32px"><div style="border-top:5px solid #ff3da1;background:#111318;padding:28px"><p style="margin:0;color:#28a8ff;font-size:12px;font-weight:bold;letter-spacing:2px">FANTASMAS BIKER'S SHOP</p><h1 style="margin:12px 0 4px">${escapeEmailHtml(status.label)}</h1><p style="color:#adb1ba">Pedido ${escapeEmailHtml(order.order_number)}</p><p style="font-size:16px;line-height:1.6">Hola ${escapeEmailHtml(order.customer_name)}, ${escapeEmailHtml(status.message)}</p><table style="width:100%;border-collapse:collapse;margin:22px 0;color:#f5f3ef">${itemRows}</table><p style="font-size:22px;font-weight:bold;text-align:right">Total: $${Number(order.total || 0).toFixed(2)} MXN</p><a href="${escapeEmailHtml(trackingUrl)}" style="display:block;padding:14px;background:#ff3da1;color:white;text-align:center;text-decoration:none;font-weight:bold">CONSULTAR MI PEDIDO</a><p style="margin-top:24px;color:#8f939c;font-size:12px;line-height:1.6">Este correo corresponde a una actualización solicitada durante tu compra. Si necesitas ayuda, contáctanos por WhatsApp.</p></div></div></body></html>`;
+  try {
+    const result = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: env.EMAIL_FROM, to: [order.customer_email], subject: `${status.label} · ${order.order_number}`, html })
+    });
+    if (!result.ok) return false;
+    await patchOrder(env, order.id, { email_last_status: order.status, email_last_sent_at: new Date().toISOString() });
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function patchOrder(env, id, changes) {
+  return supabaseRequest(env, `shop_orders?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { "Prefer": "return=minimal" },
+    body: JSON.stringify({ ...changes, updated_at: new Date().toISOString() })
+  });
+}
+
+async function createMercadoPagoPreference(request, env, canonical, order) {
+  if (!env.MP_ACCESS_TOKEN) throw new Error("Falta configurar MP_ACCESS_TOKEN en el Worker");
+  const siteUrl = cleanUrl(env.SITE_URL);
+  const workerUrl = new URL(request.url).origin;
+  const nameParts = canonical.customer.name.split(/\s+/);
+  const payer = {
+    name: nameParts.shift() || canonical.customer.name,
+    surname: nameParts.join(" "),
+    phone: { number: canonical.customer.phone }
+  };
+  if (canonical.customer.email) payer.email = canonical.customer.email;
+
+  const preference = {
+    items: canonical.items.map((item) => ({
+      id: item.id,
+      title: item.name,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      currency_id: "MXN",
+      picture_url: item.image_url || undefined
+    })),
+    payer,
+    external_reference: order.id,
+    statement_descriptor: "FANTASMAS BIKERS",
+    back_urls: {
+      success: `${siteUrl}/?payment=success&order=${order.id}`,
+      pending: `${siteUrl}/?payment=pending&order=${order.id}`,
+      failure: `${siteUrl}/?payment=failure&order=${order.id}`
+    },
+    auto_return: "approved",
+    notification_url: `${workerUrl}/webhook`,
+    metadata: { order_id: order.id, order_number: order.order_number }
+  };
+
+  const result = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${env.MP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+      "X-Idempotency-Key": order.id
+    },
+    body: JSON.stringify(preference)
+  });
+  const data = await result.json();
+  if (!result.ok || !data.id || !data.init_point) throw new Error(data.message || "Mercado Pago no pudo iniciar el cobro");
+  await patchOrder(env, order.id, { mp_preference_id: data.id });
+  return { preference_id: data.id, checkout_url: data.init_point };
+}
+
+async function handleCheckout(request, env) {
+  const payload = await readJson(request);
+  const canonical = await canonicalOrder(env, payload);
+  if (canonical.deliveryMethod === "shipping_quote") {
+    throw new Error("Primero debemos cotizar el envío antes de cobrar en línea");
+  }
+  const order = await createOrder(env, canonical, "mercadopago");
+  try {
+    const payment = await createMercadoPagoPreference(request, env, canonical, order);
+    const emailSent = await sendOrderEmail(env, order);
+    return response(request, env, { ok: true, order_id: order.id, order_number: order.order_number, email_sent: emailSent, ...payment });
+  } catch (error) {
+    await patchOrder(env, order.id, { status: "payment_failed" });
+    throw error;
+  }
+}
+
+async function handleManualOrder(request, env) {
+  const payload = await readJson(request);
+  const canonical = await canonicalOrder(env, payload);
+  const paymentMethod = canonical.deliveryMethod === "shipping_quote" ? "quote" : payload.payment_method === "transfer" ? "transfer" : "quote";
+  const order = await createOrder(env, canonical, paymentMethod);
+  const emailSent = await sendOrderEmail(env, order);
+  return response(request, env, { ok: true, order_id: order.id, order_number: order.order_number, total: order.total, payment_method: paymentMethod, email_sent: emailSent });
+}
+
+async function handleTrackOrder(request, env) {
+  const payload = await readJson(request);
+  const orderNumber = String(payload.order_number || "").trim().toUpperCase().slice(0, 20);
+  const phone = String(payload.phone || "").replace(/\D/g, "").slice(-10);
+  if (!/^FBS-[A-F0-9]{8}$/.test(orderNumber) || phone.length !== 10) throw new Error("Escribe un folio y WhatsApp válidos");
+  const rows = await supabaseRequest(env, `shop_orders?select=*&order_number=eq.${encodeURIComponent(orderNumber)}&limit=1`);
+  const order = rows?.[0];
+  const savedPhone = String(order?.customer_phone || "").replace(/\D/g, "").slice(-10);
+  if (!order || savedPhone !== phone) throw new Error("No encontramos un pedido con esos datos");
+  return response(request, env, { ok: true, order: publicOrder(order) });
+}
+
+async function authenticateAdmin(request, env) {
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) throw new Error("Sesión administrativa no válida");
+  const userResponse = await fetch(`${cleanUrl(env.SUPABASE_URL)}/auth/v1/user`, {
+    headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: authorization }
+  });
+  const user = await userResponse.json().catch(() => null);
+  if (!userResponse.ok || !UUID_PATTERN.test(String(user?.id || ""))) throw new Error("Sesión administrativa no válida");
+  const admins = await supabaseRequest(env, `shop_admins?select=user_id&user_id=eq.${user.id}&limit=1`);
+  if (!admins?.[0]) throw new Error("Este usuario no tiene permiso de administrador");
+  return user;
+}
+
+async function handleAdminOrderStatus(request, env) {
+  await authenticateAdmin(request, env);
+  const payload = await readJson(request);
+  const orderId = String(payload.order_id || "");
+  const nextStatus = String(payload.status || "");
+  if (!UUID_PATTERN.test(orderId)) throw new Error("Pedido inválido");
+  if (!["paid", "processing", "ready", "fulfilled", "cancelled"].includes(nextStatus)) throw new Error("Estado inválido");
+  if (nextStatus === "paid") {
+    await supabaseRequest(env, "rpc/confirm_shop_order_payment", {
+      method: "POST",
+      body: JSON.stringify({ p_order_id: orderId, p_payment_id: `manual-${Date.now()}`, p_payment_status: "approved" })
+    });
+  } else {
+    await patchOrder(env, orderId, { status: nextStatus });
+  }
+  const rows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);
+  const order = rows?.[0];
+  if (!order) throw new Error("Pedido no encontrado");
+  const emailSent = await sendOrderEmail(env, order);
+  return response(request, env, { ok: true, order: publicOrder(order), email_sent: emailSent });
+}
+
+async function mercadoPagoPayment(env, paymentId) {
+  const result = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
+    headers: { "Authorization": `Bearer ${env.MP_ACCESS_TOKEN}` }
+  });
+  const data = await result.json();
+  if (!result.ok) throw new Error(data.message || "No se pudo verificar el pago");
+  return data;
+}
+
+async function handleWebhook(request, env) {
+  const url = new URL(request.url);
+  let body = {};
+  try { body = await request.json(); } catch (_) { body = {}; }
+  const type = body.type || url.searchParams.get("type") || "";
+  const paymentId = body.data?.id || url.searchParams.get("data.id") || url.searchParams.get("id");
+  if (type !== "payment" || !paymentId) return response(request, env, { ok: true, ignored: true });
+
+  const payment = await mercadoPagoPayment(env, paymentId);
+  const orderId = String(payment.external_reference || "");
+  if (!UUID_PATTERN.test(orderId)) return response(request, env, { ok: true, ignored: true });
+
+  const orders = await supabaseRequest(env, `shop_orders?select=id,total&id=eq.${orderId}&limit=1`);
+  const order = orders?.[0];
+  if (!order) return response(request, env, { ok: true, ignored: true });
+  if (Math.abs(Number(order.total) - Number(payment.transaction_amount)) > 0.01 || payment.currency_id !== "MXN") {
+    return response(request, env, { ok: false, error: "El importe no coincide" }, 409);
+  }
+
+  if (payment.status === "approved") {
+    await supabaseRequest(env, "rpc/confirm_shop_order_payment", {
+      method: "POST",
+      body: JSON.stringify({ p_order_id: orderId, p_payment_id: String(payment.id), p_payment_status: payment.status })
+    });
+    const updatedRows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);
+    if (updatedRows?.[0]) await sendOrderEmail(env, updatedRows[0]);
+  } else {
+    const status = ["rejected", "cancelled", "refunded", "charged_back"].includes(payment.status) ? "payment_failed" : "pending_payment";
+    await patchOrder(env, orderId, { status, mp_payment_id: String(payment.id), mp_payment_status: payment.status });
+  }
+  return response(request, env, { ok: true });
+}
+
+function assertConfigured(env) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Falta configurar Supabase en el Worker");
+  if (!env.SITE_URL || !env.ALLOWED_ORIGIN) throw new Error("Falta configurar SITE_URL y ALLOWED_ORIGIN");
+}
+
+export default {
+  async fetch(request, env) {
+    if (request.method === "OPTIONS") return response(request, env, { ok: true });
+    const url = new URL(request.url);
+    try {
+      assertConfigured(env);
+      if (request.method === "GET" && url.pathname === "/health") return response(request, env, { ok: true, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), email_notifications: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM) });
+      if (request.method === "POST" && url.pathname === "/checkout") return await handleCheckout(request, env);
+      if (request.method === "POST" && url.pathname === "/order") return await handleManualOrder(request, env);
+      if (request.method === "POST" && url.pathname === "/track") return await handleTrackOrder(request, env);
+      if (request.method === "POST" && url.pathname === "/admin/order-status") return await handleAdminOrderStatus(request, env);
+      if (request.method === "POST" && url.pathname === "/webhook") return await handleWebhook(request, env);
+      return response(request, env, { ok: false, error: "Ruta no encontrada" }, 404);
+    } catch (error) {
+      return response(request, env, { ok: false, error: error.message || "No se pudo procesar la solicitud" }, 400);
+    }
+  }
+};
