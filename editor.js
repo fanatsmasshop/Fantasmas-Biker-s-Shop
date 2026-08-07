@@ -959,14 +959,14 @@
       <article class="list-card">
         <div class="list-image">${item.image_url ? `<img src="${safe(item.image_url)}" alt="">` : safe(item.icon || "🎁")}</div>
         <div class="list-main"><h3>$${Number(item.price).toLocaleString("es-MX")} · ${safe(item.main_prize)}</h3><p>${item.total_numbers} números · ${safe(item.secondary_prizes)} · Orden ${item.sort_order}</p><div class="badges"><span class="badge ${item.active ? "active" : "inactive"}">${item.active ? "VISIBLE" : "OCULTA"}</span></div></div>
-        <div class="list-actions"><button data-edit-raffle="${item.id}">Editar</button><button data-toggle-raffle="${item.id}">${item.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-raffle="${item.id}">Eliminar</button></div>
+        <div class="list-actions"><button data-manage-raffle="${item.id}">Números y sorteo</button><button data-edit-raffle="${item.id}">Editar</button><button data-toggle-raffle="${item.id}">${item.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-raffle="${item.id}">Eliminar</button></div>
       </article>`).join("") : '<div class="empty">No hay rifas publicadas.</div>';
   }
 
   function openRaffle(item = null) {
-    const form = $("#raffleForm"); form.reset(); form.elements.active.checked = true; form.elements.icon.value = "🎁"; form.elements.total_numbers.value = 20; form.elements.sort_order.value = 0; form.elements.button_text.value = "Apartar número";
+    const form = $("#raffleForm"); form.reset(); form.elements.active.checked = true; form.elements.sales_open.checked = true; form.elements.icon.value = "🎁"; form.elements.total_numbers.value = 20; form.elements.reservation_minutes.value = 120; form.elements.max_numbers_per_order.value = 5; form.elements.sort_order.value = 0; form.elements.button_text.value = "Elegir números";
     $("#raffleDialogTitle").textContent = item ? "Editar rifa" : "Nueva rifa";
-    if (item) { ["id","price","total_numbers","icon","main_prize","secondary_prizes","button_text","sort_order"].forEach((key) => form.elements[key].value = item[key] ?? ""); form.elements.current_image_url.value = item.image_url || ""; form.elements.current_image_path.value = item.image_path || ""; form.elements.active.checked = item.active; }
+    if (item) { ["id","price","total_numbers","reservation_minutes","max_numbers_per_order","icon","main_prize","secondary_prizes","button_text","sort_order"].forEach((key) => form.elements[key].value = item[key] ?? ""); form.elements.current_image_url.value = item.image_url || ""; form.elements.current_image_path.value = item.image_path || ""; form.elements.active.checked = item.active; form.elements.sales_open.checked = item.sales_open !== false; }
     $("#raffleStatus").textContent = ""; $("#raffleDialog").showModal();
   }
 
@@ -975,7 +975,7 @@
     const form = event.currentTarget; const status = $("#raffleStatus"); status.textContent = "Guardando…";
     try {
       const uploaded = await uploadImage(form.elements.image.files[0], "raffles");
-      const payload = { price: Number(form.elements.price.value), total_numbers: Number(form.elements.total_numbers.value), icon: form.elements.icon.value.trim() || "🎁", main_prize: form.elements.main_prize.value.trim(), secondary_prizes: form.elements.secondary_prizes.value.trim(), button_text: form.elements.button_text.value.trim() || "Apartar número", sort_order: Number(form.elements.sort_order.value || 0), active: form.elements.active.checked, image_url: uploaded?.url || form.elements.current_image_url.value || null, image_path: uploaded?.path || form.elements.current_image_path.value || null, updated_at: new Date().toISOString() };
+      const payload = { price: Number(form.elements.price.value), total_numbers: Number(form.elements.total_numbers.value), reservation_minutes: Number(form.elements.reservation_minutes.value || 120), max_numbers_per_order: Number(form.elements.max_numbers_per_order.value || 5), icon: form.elements.icon.value.trim() || "🎁", main_prize: form.elements.main_prize.value.trim(), secondary_prizes: form.elements.secondary_prizes.value.trim(), button_text: form.elements.button_text.value.trim() || "Elegir números", sort_order: Number(form.elements.sort_order.value || 0), active: form.elements.active.checked, sales_open: form.elements.sales_open.checked, image_url: uploaded?.url || form.elements.current_image_url.value || null, image_path: uploaded?.path || form.elements.current_image_path.value || null, updated_at: new Date().toISOString() };
       const id = form.elements.id.value;
       const query = id ? client.from("shop_raffles").update(payload).eq("id", id) : client.from("shop_raffles").insert(payload);
       const { error } = await query; if (error) throw error;
@@ -1046,6 +1046,7 @@
     if (button.dataset.toggleCategory) { const item = categories.find((x) => x.id === button.dataset.toggleCategory); await client.from("shop_categories").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id); await loadEditorData(); }
     if (button.dataset.deleteCategory) { const item = categories.find((x) => x.id === button.dataset.deleteCategory); if (confirm(`¿Eliminar la categoría “${item.name}”?`)) { await client.from("shop_categories").delete().eq("id", item.id); await loadEditorData(); } }
     if (button.dataset.editRaffle) openRaffle(raffles.find((x) => x.id === button.dataset.editRaffle));
+    if (button.dataset.manageRaffle) location.href = `sorteo-control.html?id=${encodeURIComponent(button.dataset.manageRaffle)}`;
     if (button.dataset.toggleRaffle) { const item = raffles.find((x) => x.id === button.dataset.toggleRaffle); await client.from("shop_raffles").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id); await loadEditorData(); }
     if (button.dataset.deleteRaffle) { const item = raffles.find((x) => x.id === button.dataset.deleteRaffle); if (confirm(`¿Eliminar la rifa de $${item.price}?`)) { await client.from("shop_raffles").delete().eq("id", item.id); if (item.image_path) await client.storage.from("shop-media").remove([item.image_path]); await loadEditorData(); } }
     if (button.dataset.editEvent) openEvent(events.find((x) => x.id === button.dataset.editEvent));

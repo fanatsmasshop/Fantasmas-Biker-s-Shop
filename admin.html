@@ -276,6 +276,8 @@
       <div class="form-grid">
         <label>Precio por número<input name="price" type="number" min="0" step="0.01" required></label>
         <label>Cantidad de números<input name="total_numbers" type="number" min="1" value="20" required></label>
+        <label>Reserva temporal (minutos)<input name="reservation_minutes" type="number" min="5" max="1440" value="120" required></label>
+        <label>Máximo por pedido<input name="max_numbers_per_order" type="number" min="1" max="20" value="5" required></label>
         <label>Icono<input name="icon" value="🎁" maxlength="8"></label>
         <label>Orden<input name="sort_order" type="number" value="0"></label>
         <label class="wide">Premio principal<input name="main_prize" required maxlength="180"></label>
@@ -283,6 +285,7 @@
         <label class="wide file-label">Imagen opcional del premio<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
         <label>Texto del botón<input name="button_text" value="Apartar número"></label>
         <label class="check"><input name="active" type="checkbox" checked> Rifa visible</label>
+        <label class="check"><input name="sales_open" type="checkbox" checked> Venta de números abierta</label>
       </div>
       <div class="dialog-actions"><span class="form-status" id="raffleStatus"></span><button type="button" class="secondary close-raffle-dialog">Cancelar</button><button class="primary" type="submit">Guardar rifa</button></div>
     </form>
@@ -326,6 +329,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="admin.js?v=10"></script>
-  <script src="editor.js?v=10.2"></script>
+  <script src="editor.js?v=11"></script>
 </body>
 </html>

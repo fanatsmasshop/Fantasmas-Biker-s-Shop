@@ -7,6 +7,28 @@
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WORKER_VERSION = "11.0.0";
+const RATE_BUCKETS = new Map();
+
+function enforceRateLimit(request, scope, limit, windowMs) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const key = `${scope}:${ip}`;
+  const now = Date.now();
+  const bucket = RATE_BUCKETS.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    RATE_BUCKETS.set(key, { count: 1, resetAt: now + windowMs });
+  } else {
+    bucket.count += 1;
+    if (bucket.count > limit) {
+      const error = new Error("Demasiados intentos. Espera unos minutos y vuelve a intentarlo.");
+      error.status = 429;
+      throw error;
+    }
+  }
+  if (RATE_BUCKETS.size > 5000) {
+    for (const [bucketKey, value] of RATE_BUCKETS) if (value.resetAt <= now) RATE_BUCKETS.delete(bucketKey);
+  }
+}
 
 function cleanUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "");
@@ -29,7 +51,8 @@ function response(request, env, payload, status = 200) {
       "Access-Control-Max-Age": "86400",
       "Vary": "Origin",
       "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff"
+      "X-Content-Type-Options": "nosniff",
+      "X-Fantasmas-Worker-Version": WORKER_VERSION
     }
   });
 }
@@ -78,11 +101,23 @@ async function canonicalOrder(env, payload) {
   const deliveryMethod = ["pickup", "shipping_quote"].includes(payload.delivery_method) ? payload.delivery_method : "pickup";
   const address = String(payload.delivery_address || "").trim().slice(0, 500);
   const notes = String(payload.notes || "").trim().slice(0, 500);
+  const requestKey = UUID_PATTERN.test(String(payload.request_key || "")) ? String(payload.request_key) : crypto.randomUUID();
   if (deliveryMethod === "shipping_quote" && address.length < 8) throw new Error("Escribe la zona o dirección para cotizar el envío");
   if (!Array.isArray(payload.items) || payload.items.length < 1 || payload.items.length > 50) throw new Error("El carrito está vacío o es demasiado grande");
 
   const quantities = new Map();
+  const raffleSelections = [];
+  const raffleKeys = new Set();
   payload.items.forEach((item) => {
+    if (item.kind === "raffle_number") {
+      const raffleId = String(item.raffle_id || "");
+      const number = Number(item.number);
+      const key = `${raffleId}:${number}`;
+      if (!UUID_PATTERN.test(raffleId) || !Number.isInteger(number) || number < 1 || raffleKeys.has(key)) throw new Error("Hay un número de rifa inválido o repetido");
+      raffleKeys.add(key);
+      raffleSelections.push({ raffle_id: raffleId, number });
+      return;
+    }
     const id = String(item.id || "");
     const quantity = Number(item.quantity);
     if (!UUID_PATTERN.test(id) || !Number.isInteger(quantity) || quantity < 1 || quantity > 20) throw new Error("Hay un producto o cantidad inválida");
@@ -90,8 +125,7 @@ async function canonicalOrder(env, payload) {
   });
 
   const ids = [...quantities.keys()];
-  const query = `shop_products?select=id,name,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`;
-  const products = await supabaseRequest(env, query);
+  const products = ids.length ? await supabaseRequest(env, `shop_products?select=id,name,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`) : [];
   if (!Array.isArray(products) || products.length !== ids.length) throw new Error("Uno de los productos ya no está disponible");
 
   const items = products.map((product) => {
@@ -101,6 +135,7 @@ async function canonicalOrder(env, payload) {
     if (product.stock !== null && quantity > Number(product.stock)) throw new Error(`Solo quedan ${product.stock} unidades de ${product.name}`);
     return {
       id: product.id,
+      kind: "product",
       name: String(product.name).slice(0, 180),
       unit_price: Math.round(unitPrice * 100) / 100,
       quantity,
@@ -108,11 +143,37 @@ async function canonicalOrder(env, payload) {
     };
   });
 
+  if (raffleSelections.length) {
+    const raffleIds = [...new Set(raffleSelections.map((item) => item.raffle_id))];
+    const raffles = await supabaseRequest(env, `shop_raffles?select=id,price,total_numbers,main_prize,image_url,active,sales_open,max_numbers_per_order&id=in.(${raffleIds.join(",")})`);
+    if (!Array.isArray(raffles) || raffles.length !== raffleIds.length) throw new Error("Una rifa ya no está disponible");
+    for (const raffle of raffles) {
+      const selected = raffleSelections.filter((item) => item.raffle_id === raffle.id);
+      if (!raffle.active || !raffle.sales_open) throw new Error("La venta de una rifa está cerrada");
+      if (selected.length > Number(raffle.max_numbers_per_order || 5)) throw new Error(`Máximo ${raffle.max_numbers_per_order || 5} números de esa rifa por pedido`);
+      for (const selection of selected) {
+        if (selection.number > Number(raffle.total_numbers)) throw new Error("Uno de los números ya no existe");
+        items.push({
+          id: raffle.id,
+          kind: "raffle_number",
+          raffle_id: raffle.id,
+          raffle_number: selection.number,
+          name: `Rifa ${raffle.main_prize} · Número ${String(selection.number).padStart(2, "0")}`,
+          unit_price: Math.round(Number(raffle.price) * 100) / 100,
+          quantity: 1,
+          image_url: raffle.image_url || ""
+        });
+      }
+    }
+  }
+
   const subtotal = Math.round(items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) / 100;
-  return { customer, emailNotifications, deliveryMethod, address, notes, items, subtotal };
+  return { customer, emailNotifications, deliveryMethod, address, notes, items, raffleSelections, subtotal, requestKey };
 }
 
 async function createOrder(env, canonical, paymentMethod) {
+  const existing = await supabaseRequest(env, `shop_orders?select=*&metadata->>request_key=eq.${encodeURIComponent(canonical.requestKey)}&limit=1`);
+  if (Array.isArray(existing) && existing[0]) return existing[0];
   const status = paymentMethod === "mercadopago" ? "pending_payment" : paymentMethod === "transfer" ? "transfer_pending" : "quote_requested";
   const payload = {
     customer_name: canonical.customer.name,
@@ -128,7 +189,7 @@ async function createOrder(env, canonical, paymentMethod) {
     subtotal: canonical.subtotal,
     shipping_cost: null,
     total: canonical.subtotal,
-    metadata: { source: "web_cart_v6" }
+    metadata: { source: "web_cart_v11", request_key: canonical.requestKey }
   };
   const rows = await supabaseRequest(env, "shop_orders?select=*", {
     method: "POST",
@@ -136,7 +197,19 @@ async function createOrder(env, canonical, paymentMethod) {
     body: JSON.stringify(payload)
   });
   if (!Array.isArray(rows) || !rows[0]) throw new Error("No se pudo crear el pedido");
-  return rows[0];
+  const order = rows[0];
+  if (canonical.raffleSelections.length) {
+    try {
+      await supabaseRequest(env, "rpc/reserve_shop_raffle_numbers", {
+        method: "POST",
+        body: JSON.stringify({ p_order_id: order.id, p_selections: canonical.raffleSelections })
+      });
+    } catch (error) {
+      await supabaseRequest(env, `shop_orders?id=eq.${order.id}`, { method: "DELETE" }).catch(() => null);
+      throw error;
+    }
+  }
+  return order;
 }
 
 const ORDER_STATUS = {
@@ -154,6 +227,47 @@ const ORDER_STATUS = {
 
 function escapeEmailHtml(value) {
   return String(value || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+
+async function deliverEmail(env, message) {
+  const gmailReady = Boolean(env.GMAIL_WEB_APP_URL && env.GMAIL_WEB_APP_SECRET);
+  const resendReady = Boolean(env.RESEND_API_KEY && env.EMAIL_FROM);
+  const attempts = [];
+
+  if (gmailReady) {
+    try {
+      const result = await fetch(cleanUrl(env.GMAIL_WEB_APP_URL), {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ secret: env.GMAIL_WEB_APP_SECRET, to: message.to, subject: message.subject, html: message.html })
+      });
+      const bodyText = await result.text();
+      let data = {};
+      try { data = bodyText ? JSON.parse(bodyText) : {}; } catch (_) { data = {}; }
+      if (result.ok && data.ok === true) return { sent: true, provider: "gmail", remaining: data.remaining ?? null, attempts };
+      attempts.push({ provider: "gmail", status: result.status, error: data.error || bodyText.slice(0, 240) || "Respuesta inválida de Apps Script" });
+    } catch (error) {
+      attempts.push({ provider: "gmail", status: 0, error: error.message || "No se pudo conectar con Apps Script" });
+    }
+  }
+
+  if (resendReady) {
+    try {
+      const result = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: env.EMAIL_FROM, to: [message.to], subject: message.subject, html: message.html })
+      });
+      const data = await result.json().catch(() => ({}));
+      if (result.ok) return { sent: true, provider: "resend", remaining: null, attempts };
+      attempts.push({ provider: "resend", status: result.status, error: data.message || "Resend rechazó el correo" });
+    } catch (error) {
+      attempts.push({ provider: "resend", status: 0, error: error.message || "No se pudo conectar con Resend" });
+    }
+  }
+
+  if (!gmailReady && !resendReady) attempts.push({ provider: null, status: 0, error: "No hay proveedor de correo configurado" });
+  return { sent: false, provider: null, remaining: null, attempts };
 }
 
 function publicOrder(order) {
@@ -184,30 +298,23 @@ async function sendOrderEmail(env, order) {
   const html = `<!doctype html><html><body style="margin:0;background:#07080b;color:#f5f3ef;font-family:Arial,sans-serif"><div style="max-width:620px;margin:auto;padding:32px"><div style="border-top:5px solid #ff3da1;background:#111318;padding:28px"><p style="margin:0;color:#28a8ff;font-size:12px;font-weight:bold;letter-spacing:2px">FANTASMAS BIKER'S SHOP</p><h1 style="margin:12px 0 4px">${escapeEmailHtml(status.label)}</h1><p style="color:#adb1ba">Pedido ${escapeEmailHtml(order.order_number)}</p><p style="font-size:16px;line-height:1.6">Hola ${escapeEmailHtml(order.customer_name)}, ${escapeEmailHtml(status.message)}</p><table style="width:100%;border-collapse:collapse;margin:22px 0;color:#f5f3ef">${itemRows}</table><p style="font-size:22px;font-weight:bold;text-align:right">Total: $${Number(order.total || 0).toFixed(2)} MXN</p><a href="${escapeEmailHtml(trackingUrl)}" style="display:block;padding:14px;background:#ff3da1;color:white;text-align:center;text-decoration:none;font-weight:bold">CONSULTAR MI PEDIDO</a><p style="margin-top:24px;color:#8f939c;font-size:12px;line-height:1.6">Este correo corresponde a una actualización solicitada durante tu compra. Si necesitas ayuda, contáctanos por WhatsApp.</p></div></div></body></html>`;
   const subject = `${status.label} · ${order.order_number}`;
   try {
-    let sent = false;
-    if (gmailReady) {
-      const gmailResult = await fetch(env.GMAIL_WEB_APP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ secret: env.GMAIL_WEB_APP_SECRET, to: order.customer_email, subject, html })
-      });
-      const gmailData = await gmailResult.json().catch(() => ({}));
-      sent = gmailResult.ok && gmailData.ok === true;
-    }
-    if (!sent && resendReady) {
-      const resendResult = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: env.EMAIL_FROM, to: [order.customer_email], subject, html })
-      });
-      sent = resendResult.ok;
-    }
-    if (!sent) return false;
+    const delivery = await deliverEmail(env, { to: order.customer_email, subject, html });
+    if (!delivery.sent) return false;
     await patchOrder(env, order.id, { email_last_status: order.status, email_last_sent_at: new Date().toISOString() });
     return true;
   } catch (_) {
     return false;
   }
+}
+
+async function handleAdminEmailTest(request, env) {
+  const user = await authenticateAdmin(request, env);
+  const payload = await readJson(request);
+  const to = String(payload.email || user.email || "").trim().toLowerCase().slice(0, 160);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("Escribe un correo válido para la prueba");
+  const html = `<!doctype html><html><body style="margin:0;background:#07080b;color:#f5f3ef;font-family:Arial,sans-serif"><div style="max-width:600px;margin:auto;padding:35px"><div style="padding:30px;border-top:5px solid #ff3da1;background:#111318"><p style="color:#28a8ff;font-weight:bold;letter-spacing:2px">FANTASMAS BIKER'S SHOP</p><h1>Correo conectado correctamente</h1><p style="color:#c8cbd2;line-height:1.7">Esta prueba confirma que Cloudflare Worker puede solicitar a Gmail el envío de actualizaciones de pedidos.</p><p style="color:#8f939c;font-size:12px">Worker ${WORKER_VERSION} · ${new Date().toISOString()}</p></div></div></body></html>`;
+  const delivery = await deliverEmail(env, { to, subject: "Prueba de correos · Fantasmas Biker's Shop", html });
+  return response(request, env, { ok: delivery.sent, ...delivery }, delivery.sent ? 200 : 502);
 }
 
 async function patchOrder(env, id, changes) {
@@ -248,6 +355,9 @@ async function createMercadoPagoPreference(request, env, canonical, order) {
       failure: `${siteUrl}/?payment=failure&order=${order.id}`
     },
     auto_return: "approved",
+    expires: true,
+    expiration_date_from: new Date().toISOString(),
+    expiration_date_to: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
     notification_url: `${workerUrl}/webhook`,
     metadata: { order_id: order.id, order_number: order.order_number }
   };
@@ -280,6 +390,7 @@ async function handleCheckout(request, env) {
     return response(request, env, { ok: true, order_id: order.id, order_number: order.order_number, email_sent: emailSent, ...payment });
   } catch (error) {
     await patchOrder(env, order.id, { status: "payment_failed" });
+    await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: order.id }) }).catch(() => null);
     throw error;
   }
 }
@@ -329,6 +440,7 @@ async function handleAdminOrderStatus(request, env) {
       body: JSON.stringify({ p_order_id: orderId, p_payment_id: `manual-${Date.now()}`, p_payment_status: "approved" })
     });
   } else {
+    if (nextStatus === "cancelled") await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
     await patchOrder(env, orderId, { status: nextStatus });
   }
   const rows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);
@@ -376,6 +488,7 @@ async function handleWebhook(request, env) {
   } else {
     const status = ["rejected", "cancelled", "refunded", "charged_back"].includes(payment.status) ? "payment_failed" : "pending_payment";
     await patchOrder(env, orderId, { status, mp_payment_id: String(payment.id), mp_payment_status: payment.status });
+    if (status === "payment_failed") await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
   }
   return response(request, env, { ok: true });
 }
@@ -393,16 +506,17 @@ export default {
       assertConfigured(env);
       if (request.method === "GET" && url.pathname === "/health") {
         const emailProvider = env.GMAIL_WEB_APP_URL && env.GMAIL_WEB_APP_SECRET ? "gmail" : env.RESEND_API_KEY && env.EMAIL_FROM ? "resend" : null;
-        return response(request, env, { ok: true, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), email_notifications: Boolean(emailProvider), email_provider: emailProvider });
+        return response(request, env, { ok: true, version: WORKER_VERSION, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), email_notifications: Boolean(emailProvider), email_provider: emailProvider });
       }
-      if (request.method === "POST" && url.pathname === "/checkout") return await handleCheckout(request, env);
-      if (request.method === "POST" && url.pathname === "/order") return await handleManualOrder(request, env);
-      if (request.method === "POST" && url.pathname === "/track") return await handleTrackOrder(request, env);
+      if (request.method === "POST" && url.pathname === "/checkout") { enforceRateLimit(request, "checkout", 12, 300000); return await handleCheckout(request, env); }
+      if (request.method === "POST" && url.pathname === "/order") { enforceRateLimit(request, "order", 12, 300000); return await handleManualOrder(request, env); }
+      if (request.method === "POST" && url.pathname === "/track") { enforceRateLimit(request, "track", 20, 600000); return await handleTrackOrder(request, env); }
       if (request.method === "POST" && url.pathname === "/admin/order-status") return await handleAdminOrderStatus(request, env);
+      if (request.method === "POST" && url.pathname === "/admin/email-test") return await handleAdminEmailTest(request, env);
       if (request.method === "POST" && url.pathname === "/webhook") return await handleWebhook(request, env);
       return response(request, env, { ok: false, error: "Ruta no encontrada" }, 404);
     } catch (error) {
-      return response(request, env, { ok: false, error: error.message || "No se pudo procesar la solicitud" }, 400);
+      return response(request, env, { ok: false, error: error.message || "No se pudo procesar la solicitud" }, Number(error.status) || 400);
     }
   }
 };

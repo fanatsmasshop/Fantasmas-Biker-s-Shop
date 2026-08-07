@@ -162,10 +162,7 @@
     const { data, error } = await client.from("shop_raffles").select("*").eq("active", true).order("sort_order").order("price");
     if (error) return;
     if (!data || data.length === 0) { target.innerHTML = ""; section.hidden = true; return; }
-    target.innerHTML = data.map((raffle) => {
-      const message = encodeURIComponent(`Hola, quiero apartar un número de la rifa de $${raffle.price} de Fantasmas Biker's Shop.`);
-      return `<article class="rifa"><div class="rifa-cabecera">${raffle.image_url ? `<img src="${escapeHtml(raffle.image_url)}" alt="${escapeHtml(raffle.main_prize)}" loading="lazy">` : `<span class="icono">${escapeHtml(raffle.icon)}</span>`}<span class="cantidad">${raffle.total_numbers} NÚMEROS</span></div><div class="rifa-cuerpo"><div class="precio"><small>$</small>${Number(raffle.price).toLocaleString("es-MX")}<small> MXN</small></div><p class="mini">PREMIO PRINCIPAL</p><h3>${escapeHtml(raffle.main_prize)}</h3><p class="secundarios"><b>Premios secundarios:</b> ${escapeHtml(raffle.secondary_prizes)}</p><a href="https://wa.me/${storeWhatsApp}?text=${message}" target="_blank">${escapeHtml(raffle.button_text)} <b>→</b></a></div></article>`;
-    }).join("");
+    target.innerHTML = data.map((raffle) => `<article class="rifa"><div class="rifa-cabecera">${raffle.image_url ? `<img src="${escapeHtml(raffle.image_url)}" alt="${escapeHtml(raffle.main_prize)}" loading="lazy">` : `<span class="icono">${escapeHtml(raffle.icon)}</span>`}<span class="cantidad">${raffle.total_numbers} NÚMEROS</span></div><div class="rifa-cuerpo"><div class="precio"><small>$</small>${Number(raffle.price).toLocaleString("es-MX")}<small> MXN</small></div><p class="mini">PREMIO PRINCIPAL</p><h3>${escapeHtml(raffle.main_prize)}</h3><p class="secundarios"><b>Premios secundarios:</b> ${escapeHtml(raffle.secondary_prizes)}</p><a href="rifa.html?id=${encodeURIComponent(raffle.id)}">${escapeHtml(raffle.sales_open === false ? "Ver rifa" : raffle.button_text || "Elegir números")} <b>→</b></a></div></article>`).join("");
     if (canReveal(section)) section.hidden = false;
   }
 

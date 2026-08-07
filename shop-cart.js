@@ -35,11 +35,25 @@
 
   function normalizedCart() {
     cart = cart.filter((item) => item && item.id && Number(item.quantity) > 0).map((item) => {
+      if (item.kind === "raffle_number") {
+        return {
+          ...item,
+          kind: "raffle_number",
+          cart_key: item.cart_key || `raffle:${item.raffle_id || item.id}:${item.number}`,
+          raffle_id: item.raffle_id || item.id,
+          number: Number(item.number),
+          price: Number(item.price || 0),
+          quantity: 1,
+          stock: null
+        };
+      }
       const product = productById(item.id);
       const stock = product?.stock === null || product?.stock === undefined ? null : Number(product.stock);
       const maximum = stock === null ? 20 : Math.max(0, Math.min(20, stock));
       return {
         id: item.id,
+        kind: "product",
+        cart_key: item.id,
         name: product?.name || item.name || "Producto",
         price: Number(product?.price ?? item.price ?? 0),
         image_url: product?.image_url || item.image_url || "",
@@ -67,9 +81,9 @@
     $("#cartCheckoutButton").disabled = items.length === 0;
     $("#cartQuoteButton").disabled = items.length === 0;
     $("#cartItems").innerHTML = items.length ? items.map((item) => `
-      <article class="cart-item" data-cart-item="${item.id}">
+      <article class="cart-item" data-cart-item="${escapeHtml(item.cart_key)}">
         <div class="cart-item-image">${item.image_url ? `<img src="${escapeHtml(item.image_url)}" alt="">` : "☠"}</div>
-        <div class="cart-item-main"><h3>${escapeHtml(item.name)}</h3><strong>${money(item.price)}</strong><div class="cart-item-quantity"><button type="button" data-cart-change="-1" aria-label="Quitar uno">−</button><span>${item.quantity}</span><button type="button" data-cart-change="1" aria-label="Agregar uno">+</button></div></div>
+        <div class="cart-item-main"><h3>${escapeHtml(item.name)}</h3><strong>${money(item.price)}</strong>${item.kind === "raffle_number" ? `<div class="cart-raffle-tag">Número ${String(item.number).padStart(2, "0")} · reserva 2 h</div>` : `<div class="cart-item-quantity"><button type="button" data-cart-change="-1" aria-label="Quitar uno">−</button><span>${item.quantity}</span><button type="button" data-cart-change="1" aria-label="Agregar uno">+</button></div>`}</div>
         <button class="cart-item-remove" type="button" data-cart-remove aria-label="Quitar del carrito">×</button>
       </article>`).join("") : '<div class="cart-empty"><div><span>🛒</span><b>Tu carrito está vacío</b><p>Agrega productos desde el catálogo.</p></div></div>';
   }
@@ -82,7 +96,7 @@
     if (stock !== null && stock <= 0) return;
     const existing = cart.find((item) => item.id === id);
     if (existing) existing.quantity = Math.min(stock === null ? 20 : stock, existing.quantity + 1);
-    else cart.push({ id, name: product.name, price: Number(product.price), image_url: product.image_url || "", stock, quantity: 1 });
+    else cart.push({ id, kind: "product", cart_key: id, name: product.name, price: Number(product.price), image_url: product.image_url || "", stock, quantity: 1 });
     writeStorage(STORAGE_KEY, cart);
     renderCart();
     const button = $("#cartOpenButton");
@@ -94,8 +108,9 @@
 
   function changeQuantity(id, change) {
     checkoutRequestKey = "";
-    const item = cart.find((entry) => entry.id === id);
+    const item = cart.find((entry) => (entry.cart_key || entry.id) === id);
     if (!item) return;
+    if (item.kind === "raffle_number") return;
     const product = productById(id);
     const max = product?.stock === null || product?.stock === undefined ? 20 : Number(product.stock);
     item.quantity = Math.min(max, item.quantity + change);
@@ -214,7 +229,9 @@
       notes: form.elements.notes.value.trim(),
       email_notifications: form.elements.email_notifications.checked,
       payment_method: form.elements.payment_method.value,
-      items: normalizedCart().map((item) => ({ id: item.id, quantity: item.quantity }))
+      items: normalizedCart().map((item) => item.kind === "raffle_number"
+        ? { kind: "raffle_number", raffle_id: item.raffle_id, number: item.number, quantity: 1 }
+        : { kind: "product", id: item.id, quantity: item.quantity })
     };
   }
 
@@ -346,7 +363,7 @@
     if (add) addProduct(add.dataset.addToCart);
     const row = event.target.closest("[data-cart-item]");
     if (row && event.target.closest("[data-cart-change]")) changeQuantity(row.dataset.cartItem, Number(event.target.closest("[data-cart-change]").dataset.cartChange));
-    if (row && event.target.closest("[data-cart-remove]")) { checkoutRequestKey = ""; cart = cart.filter((item) => item.id !== row.dataset.cartItem); writeStorage(STORAGE_KEY, cart); renderCart(); }
+    if (row && event.target.closest("[data-cart-remove]")) { checkoutRequestKey = ""; cart = cart.filter((item) => (item.cart_key || item.id) !== row.dataset.cartItem); writeStorage(STORAGE_KEY, cart); renderCart(); }
   });
 
   $("#cartOpenButton").addEventListener("click", openCart);
@@ -366,4 +383,8 @@
 
   renderCart();
   showPaymentReturn();
+  if (new URLSearchParams(location.search).get("cart") === "open") {
+    openCart();
+    history.replaceState({}, "", `${location.pathname}${location.hash || ""}`);
+  }
 })();

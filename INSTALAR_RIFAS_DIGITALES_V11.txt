@@ -1,0 +1,70 @@
+FANTASMAS BIKER'S SHOP — INSTALAR RIFAS DIGITALES V11
+======================================================
+
+IMPORTANTE
+- Esta actualización no sustituye supabase-config.js.
+- No borra productos, pedidos, usuarios, fotos ni rifas existentes.
+- Haz los pasos en este orden.
+
+1) SUPABASE
+En Supabase > SQL Editor > New query:
+- Abre database_raffles_live_v11.sql.
+- Copia todo, pégalo y pulsa Run.
+- Debe terminar sin errores.
+
+2) CLOUDFLARE WORKER
+En Workers & Pages > fantasmas-checkout > Edit code:
+- Sustituye el código por cloudflare-mercadopago-worker.js.
+- Pulsa Deploy.
+- Abre /health y confirma que diga version 11.0.0.
+- No cambies ni borres las variables y secretos que ya funcionan.
+
+3) GITHUB / CLOUDFLARE PAGES
+Sube y reemplaza los archivos del ZIP en la raíz del repositorio.
+Espera el despliegue de Pages.
+
+4) PRUEBA DE CLIENTE
+- Abre la tienda > Rifas > Elegir números.
+- Selecciona uno o más números y agrégalos al carrito.
+- Finaliza un pedido de prueba por transferencia.
+- Vuelve al mapa: los números deben aparecer como reservados.
+- En el panel > Pedidos, marca el pedido como Pagado.
+- El mapa debe mostrar esos números como pagados.
+
+5) VENTA EN SUCURSAL
+- Panel > Rifas > Números y sorteo.
+- Elige un número.
+- Escribe nombre y WhatsApp del cliente.
+- Pulsa “Registrar pagado en sucursal”.
+- “Liberar número” lo devuelve a disponible.
+- “Bloquear” lo retira temporalmente de la venta.
+
+6) TRANSMISIÓN Y RULETA
+- En “Números y sorteo”, abre “Pantalla en vivo” en otra pestaña.
+- Esa URL es la que puedes capturar en OBS/StreamYard o mostrar en pantalla.
+- Para cada premio: cuenta regresiva > animar ruleta > obtener ganador.
+- Los premios se sortean en orden y el premio principal queda al final.
+- Solo entran números pagados y no se repite un número ganador.
+
+REGLAS CONFIGURADAS
+- Reserva: 120 minutos.
+- Máximo: 5 números de la misma rifa por pedido.
+- Disponibles para sorteo: únicamente pagados.
+- Venta presencial: desde el control privado.
+- Datos del cliente: nunca aparecen en el mapa público.
+
+ARCHIVOS NUEVOS
+- database_raffles_live_v11.sql
+- rifa.html, rifa.css, rifa.js
+- sorteo-control.html, sorteo-control.js
+- sorteo-en-vivo.html, sorteo-en-vivo.js
+- sorteo.css
+
+ARCHIVOS ACTUALIZADOS
+- admin.html
+- editor.js
+- index.html
+- public-data.js
+- shop-cart.js
+- shop-cart.css
+- cloudflare-mercadopago-worker.js
