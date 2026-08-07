@@ -101,8 +101,17 @@
                 <label>Nombre dentro del editor<input name="custom_label" maxlength="80"></label>
                 <label>Etiqueta superior<input name="custom_eyebrow" maxlength="100"></label>
                 <label>Texto adicional<textarea name="custom_body" rows="5" maxlength="1500"></textarea></label>
-                <label>Tema oficial<select name="custom_theme"><option value="dark">Negro</option><option value="blue">Azul</option><option value="pink">Rosa</option><option value="gradient">Azul y rosa</option></select></label>
+                <label>Estilo de color<select name="custom_theme"><option value="dark">Negro oficial</option><option value="blue">Azul oficial</option><option value="pink">Rosa oficial</option><option value="gradient">Azul y rosa</option><option value="custom">Colores personalizados</option></select></label>
+                <div class="custom-color-controls" id="customColorControls">
+                  <label>Fondo<input name="custom_background_color" type="color" value="#0d1015"></label>
+                  <label>Segundo color<input name="custom_background_secondary" type="color" value="#251136"></label>
+                  <label>Texto<input name="custom_text_color" type="color" value="#ffffff"></label>
+                  <label>Acento<input name="custom_accent_color" type="color" value="#28a8ff"></label>
+                  <label class="wide-control">Tipo de fondo<select name="custom_background_mode"><option value="solid">Color sólido</option><option value="gradient">Degradado</option></select></label>
+                </div>
                 <label>Alineación<select name="custom_alignment"><option value="left">Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option></select></label>
+                <label>Altura de sección<select name="custom_section_height"><option value="auto">Según el contenido</option><option value="compact">Pequeña</option><option value="normal">Mediana</option><option value="large">Grande</option><option value="screen">Pantalla completa</option></select></label>
+                <label>Ancho del contenido<select name="custom_content_width"><option value="narrow">Angosto</option><option value="normal">Normal</option><option value="wide">Amplio</option><option value="full">Todo el ancho</option></select></label>
                 <label>Posición de imagen<select name="custom_image_position"><option value="right">A la derecha</option><option value="left">A la izquierda</option><option value="background">Como fondo</option><option value="none">Sin imagen</option></select></label>
                 <label>Descripción de la imagen<input name="custom_image_alt" maxlength="160" placeholder="Describe la fotografía"></label>
                 <label class="custom-image-upload">Subir o reemplazar imagen<input name="custom_image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
@@ -110,6 +119,11 @@
                 <button class="secondary custom-control-button" type="button" id="removeCustomImage">Quitar imagen</button>
                 <small class="custom-upload-status" id="customUploadStatus"></small>
                 <div class="custom-buttons-heading"><div><b>Botones de la sección</b><small>Puedes agregar varios destinos.</small></div><button type="button" id="addCustomButton">+ Botón</button></div>
+                <div class="custom-button-layout-controls">
+                  <label>Acomodo<select name="custom_button_layout"><option value="auto">Automático</option><option value="row">En una fila</option><option value="stack">Uno debajo de otro</option><option value="grid">Mismo ancho</option></select></label>
+                  <label>Posición<select name="custom_button_alignment"><option value="left">Izquierda</option><option value="center">Centro</option><option value="right">Derecha</option><option value="stretch">Ocupar el espacio</option></select></label>
+                  <label>Separación<select name="custom_button_gap"><option value="small">Pequeña</option><option value="normal">Normal</option><option value="large">Amplia</option></select></label>
+                </div>
                 <div class="custom-buttons-editor" id="customButtonsEditor"></div>
               </div>
               <label class="inspector-toggle"><input name="enabled" type="checkbox"> Mostrar este bloque</label>
@@ -256,6 +270,20 @@
       </div>
       <div class="dialog-actions"><span class="form-status" id="promotionStatus"></span><button type="button" class="secondary close-dialog">Cancelar</button><button class="primary" type="submit">Guardar promoción</button></div>
     </form>
+  </dialog>
+
+  <dialog id="sectionTemplateDialog" class="section-template-dialog">
+    <div class="section-template-panel">
+      <div class="dialog-head"><div><p class="eyebrow">NUEVO BLOQUE</p><h2>Elige una plantilla</h2><p>Es solo el punto de partida: después puedes cambiar todo su contenido y acomodo.</p></div><button type="button" class="icon-button close-template-dialog">×</button></div>
+      <div class="section-template-grid">
+        <button type="button" data-section-template="blank"><span>＋</span><b>En blanco</b><small>Empieza desde cero, sin imagen ni botones.</small></button>
+        <button type="button" data-section-template="text"><span>¶</span><b>Texto centrado</b><small>Ideal para información, historia o avisos.</small></button>
+        <button type="button" data-section-template="image"><span>▧</span><b>Texto e imagen</b><small>Dos columnas con un botón adaptable.</small></button>
+        <button type="button" data-section-template="cta"><span>↗</span><b>Llamada a la acción</b><small>Mensaje destacado con dos botones.</small></button>
+        <button type="button" data-section-template="banner"><span>▰</span><b>Banner con fondo</b><small>Imagen de fondo, degradado y botón grande.</small></button>
+        <button type="button" data-section-template="buttons"><span>•••</span><b>Menú de botones</b><small>Varios enlaces que se acomodan solos.</small></button>
+      </div>
+    </div>
   </dialog>
 
   <div class="toast" id="toast"></div>

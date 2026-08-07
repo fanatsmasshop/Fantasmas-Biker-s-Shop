@@ -48,6 +48,32 @@
     contact: "Contacto",
     footer: "Pie de página"
   };
+  const sectionTemplates = {
+    blank: {
+      label: "Sección en blanco", title: "NUEVA SECCIÓN", subtitle: "Escribe aquí el contenido principal.", layout: "grid",
+      content: { eyebrow: "", body: "", theme: "custom", alignment: "left", image_position: "none", section_height: "auto", content_width: "normal", buttons: [] }
+    },
+    text: {
+      label: "Bloque de texto", title: "CUENTA TU HISTORIA.", subtitle: "Agrega una explicación clara para tus clientes.", layout: "carousel",
+      content: { eyebrow: "INFORMACIÓN", body: "Este espacio puede contener avisos, condiciones, horarios o cualquier información importante.", theme: "dark", alignment: "center", image_position: "none", section_height: "normal", content_width: "narrow", buttons: [] }
+    },
+    image: {
+      label: "Texto e imagen", title: "PRESENTA ALGO NUEVO.", subtitle: "Combina una fotografía con información y una acción.", layout: "grid",
+      content: { eyebrow: "DESTACADO", body: "Sube tu imagen, cambia los textos y decide si aparece a la izquierda o a la derecha.", theme: "dark", alignment: "left", image_position: "right", section_height: "normal", content_width: "normal", buttons: [{ text: "Ver más", url: "#contacto", style: "pink", size: "medium" }] }
+    },
+    cta: {
+      label: "Llamada a la acción", title: "¿LISTO PARA RODAR?", subtitle: "Invita a tus visitantes a realizar una acción concreta.", layout: "featured",
+      content: { eyebrow: "FANTASMAS BIKER'S SHOP", body: "Usa uno, dos o más botones. El bloque se ajustará automáticamente.", theme: "gradient", alignment: "center", image_position: "none", section_height: "normal", content_width: "normal", button_alignment: "center", buttons: [{ text: "Escribir por WhatsApp", url: "https://wa.me/525610329215", style: "pink", size: "large" }, { text: "Ver productos", url: "#productosPublicos", style: "light", size: "large" }] }
+    },
+    banner: {
+      label: "Banner con fondo", title: "HAZ QUE ESTE MENSAJE DESTAQUE.", subtitle: "Usa una imagen de fondo para promociones, lanzamientos o eventos.", layout: "featured",
+      content: { eyebrow: "ANUNCIO ESPECIAL", body: "Reemplaza la imagen y personaliza todos los colores desde el editor.", theme: "custom", background_mode: "gradient", background_color: "#07101a", background_secondary: "#3a0b32", text_color: "#ffffff", accent_color: "#ff3da1", alignment: "left", image_position: "background", section_height: "large", content_width: "wide", buttons: [{ text: "Más información", url: "#contacto", style: "custom", size: "large", background_color: "#ff3da1", text_color: "#ffffff" }] }
+    },
+    buttons: {
+      label: "Menú de botones", title: "ELIGE A DÓNDE IR.", subtitle: "Crea accesos rápidos a productos, promociones, contacto o enlaces externos.", layout: "carousel",
+      content: { eyebrow: "ACCESOS RÁPIDOS", body: "Puedes agregar, borrar, ordenar y cambiar el tamaño de cada botón.", theme: "custom", background_mode: "solid", background_color: "#10131a", background_secondary: "#251136", text_color: "#ffffff", accent_color: "#28a8ff", alignment: "center", image_position: "none", section_height: "normal", content_width: "normal", button_layout: "grid", button_alignment: "stretch", buttons: [{ text: "Productos", url: "#productosPublicos", style: "blue", size: "medium" }, { text: "Promociones", url: "#promocionesPublicas", style: "pink", size: "medium" }, { text: "Contacto", url: "#contacto", style: "dark", size: "medium" }] }
+    }
+  };
   const isCustomSection = (section) => Boolean(section && (section.section_type === "custom" || section.section_key.startsWith("custom_")));
   const customContent = (section) => {
     const value = section?.content;
@@ -380,19 +406,32 @@
     const anchorId = current.anchor_id || `seccion-${section.section_key.replace(/^custom_/, "").slice(0, 8)}`;
     section.content = {
       anchor_id: anchorId,
-      eyebrow: current.eyebrow || "SECCIÓN PERSONALIZADA",
-      body: current.body || "",
-      theme: ["dark","blue","pink","gradient"].includes(current.theme) ? current.theme : "dark",
+      eyebrow: current.eyebrow ?? "SECCIÓN PERSONALIZADA",
+      body: current.body ?? "",
+      theme: ["dark","blue","pink","gradient","custom"].includes(current.theme) ? current.theme : "dark",
+      background_mode: ["solid","gradient"].includes(current.background_mode) ? current.background_mode : "solid",
+      background_color: /^#[0-9a-f]{6}$/i.test(current.background_color || "") ? current.background_color : "#0d1015",
+      background_secondary: /^#[0-9a-f]{6}$/i.test(current.background_secondary || "") ? current.background_secondary : "#251136",
+      text_color: /^#[0-9a-f]{6}$/i.test(current.text_color || "") ? current.text_color : "#ffffff",
+      accent_color: /^#[0-9a-f]{6}$/i.test(current.accent_color || "") ? current.accent_color : "#28a8ff",
       alignment: ["left","center","right"].includes(current.alignment) ? current.alignment : "left",
+      section_height: ["auto","compact","normal","large","screen"].includes(current.section_height) ? current.section_height : "auto",
+      content_width: ["narrow","normal","wide","full"].includes(current.content_width) ? current.content_width : "normal",
       image_position: ["right","left","background","none"].includes(current.image_position) ? current.image_position : "right",
       image_url: current.image_url || "",
       image_path: current.image_path || "",
       image_alt: current.image_alt || "",
+      button_layout: ["auto","row","stack","grid"].includes(current.button_layout) ? current.button_layout : "auto",
+      button_alignment: ["left","center","right","stretch"].includes(current.button_alignment) ? current.button_alignment : (["left","center","right"].includes(current.alignment) ? current.alignment : "left"),
+      button_gap: ["small","normal","large"].includes(current.button_gap) ? current.button_gap : "normal",
       buttons: Array.isArray(current.buttons) ? current.buttons.map((button) => ({
         id: button.id || crypto.randomUUID(),
         text: button.text || "Botón",
         url: button.url || "",
-        style: ["pink","blue","dark","light"].includes(button.style) ? button.style : "pink"
+        style: ["pink","blue","dark","light","custom"].includes(button.style) ? button.style : "pink",
+        size: ["small","medium","large","full"].includes(button.size) ? button.size : "medium",
+        background_color: /^#[0-9a-f]{6}$/i.test(button.background_color || "") ? button.background_color : "#ff3da1",
+        text_color: /^#[0-9a-f]{6}$/i.test(button.text_color || "") ? button.text_color : "#ffffff"
       })) : []
     };
     return section.content;
@@ -414,9 +453,20 @@
     form.elements.custom_eyebrow.value = content.eyebrow;
     form.elements.custom_body.value = content.body;
     form.elements.custom_theme.value = content.theme;
+    form.elements.custom_background_mode.value = content.background_mode;
+    form.elements.custom_background_color.value = content.background_color;
+    form.elements.custom_background_secondary.value = content.background_secondary;
+    form.elements.custom_text_color.value = content.text_color;
+    form.elements.custom_accent_color.value = content.accent_color;
     form.elements.custom_alignment.value = content.alignment;
+    form.elements.custom_section_height.value = content.section_height;
+    form.elements.custom_content_width.value = content.content_width;
     form.elements.custom_image_position.value = content.image_position;
     form.elements.custom_image_alt.value = content.image_alt;
+    form.elements.custom_button_layout.value = content.button_layout;
+    form.elements.custom_button_alignment.value = content.button_alignment;
+    form.elements.custom_button_gap.value = content.button_gap;
+    $("#customColorControls").hidden = content.theme !== "custom";
     form.elements.custom_image.value = "";
     $("#customUploadStatus").textContent = "";
     $("#customImagePreview").innerHTML = content.image_url
@@ -427,16 +477,26 @@
       <article class="custom-button-row" data-custom-button="${safe(button.id)}">
         <div class="custom-button-row-head"><b>Botón ${index + 1}</b><div><button type="button" data-move-custom-button="up" title="Subir">↑</button><button type="button" data-move-custom-button="down" title="Bajar">↓</button><button type="button" data-remove-custom-button title="Eliminar">×</button></div></div>
         <label>Texto<input data-custom-button-text maxlength="60" value="${safe(button.text)}"></label>
-        <label>Estilo<select data-custom-button-style><option value="pink"${button.style === "pink" ? " selected" : ""}>Rosa</option><option value="blue"${button.style === "blue" ? " selected" : ""}>Azul</option><option value="dark"${button.style === "dark" ? " selected" : ""}>Oscuro</option><option value="light"${button.style === "light" ? " selected" : ""}>Claro</option></select></label>
+        <div class="custom-button-options">
+          <label>Estilo<select data-custom-button-style><option value="pink"${button.style === "pink" ? " selected" : ""}>Rosa</option><option value="blue"${button.style === "blue" ? " selected" : ""}>Azul</option><option value="dark"${button.style === "dark" ? " selected" : ""}>Oscuro</option><option value="light"${button.style === "light" ? " selected" : ""}>Claro</option><option value="custom"${button.style === "custom" ? " selected" : ""}>Personalizado</option></select></label>
+          <label>Tamaño<select data-custom-button-size><option value="small"${button.size === "small" ? " selected" : ""}>Pequeño</option><option value="medium"${button.size === "medium" ? " selected" : ""}>Mediano</option><option value="large"${button.size === "large" ? " selected" : ""}>Grande</option><option value="full"${button.size === "full" ? " selected" : ""}>Ancho completo</option></select></label>
+        </div>
+        <div class="custom-button-colors"><label>Fondo personalizado<input data-custom-button-background type="color" value="${safe(button.background_color)}"></label><label>Texto personalizado<input data-custom-button-text-color type="color" value="${safe(button.text_color)}"></label></div>
         <label>Destino<input name="custom_button_${safe(button.id)}_url" data-custom-button-url value="${safe(button.url)}" maxlength="500"></label>
       </article>`).join("") : '<div class="custom-buttons-empty">Esta sección todavía no tiene botones.</div>';
     enhanceLinkInputs($("#customButtonsEditor"));
   }
 
-  function updateSectionFromInspector() {
+  function updateSectionFromInspector(event) {
     const form = $("#sectionInspectorForm");
     const section = sections.find((item) => item.section_key === form.elements.section_key.value);
     if (!section) return;
+    const customColorNames = new Set(["custom_background_color","custom_background_secondary","custom_text_color","custom_accent_color","custom_background_mode"]);
+    if (event?.target?.name && customColorNames.has(event.target.name)) form.elements.custom_theme.value = "custom";
+    const buttonRow = event?.target?.closest?.("[data-custom-button]");
+    if (buttonRow && (event.target.matches("[data-custom-button-background]") || event.target.matches("[data-custom-button-text-color]"))) {
+      $("[data-custom-button-style]", buttonRow).value = "custom";
+    }
     if (!specialSections.has(section.section_key)) {
       section.title = form.elements.title.value;
       section.subtitle = form.elements.subtitle.value;
@@ -458,14 +518,28 @@
       content.eyebrow = form.elements.custom_eyebrow.value;
       content.body = form.elements.custom_body.value;
       content.theme = form.elements.custom_theme.value;
+      content.background_mode = form.elements.custom_background_mode.value;
+      content.background_color = form.elements.custom_background_color.value;
+      content.background_secondary = form.elements.custom_background_secondary.value;
+      content.text_color = form.elements.custom_text_color.value;
+      content.accent_color = form.elements.custom_accent_color.value;
       content.alignment = form.elements.custom_alignment.value;
+      content.section_height = form.elements.custom_section_height.value;
+      content.content_width = form.elements.custom_content_width.value;
       content.image_position = form.elements.custom_image_position.value;
       content.image_alt = form.elements.custom_image_alt.value;
+      content.button_layout = form.elements.custom_button_layout.value;
+      content.button_alignment = form.elements.custom_button_alignment.value;
+      content.button_gap = form.elements.custom_button_gap.value;
+      $("#customColorControls").hidden = content.theme !== "custom";
       content.buttons = $$("[data-custom-button]", $("#customButtonsEditor")).map((row) => ({
         id: row.dataset.customButton,
         text: $("[data-custom-button-text]", row).value.trim() || "Botón",
         url: $("[data-custom-button-url]", row).value.trim(),
-        style: $("[data-custom-button-style]", row).value
+        style: $("[data-custom-button-style]", row).value,
+        size: $("[data-custom-button-size]", row).value,
+        background_color: $("[data-custom-button-background]", row).value,
+        text_color: $("[data-custom-button-text-color]", row).value
       }));
       $("#inspectorSectionName").textContent = section.label;
     }
@@ -475,29 +549,27 @@
     $("#sectionEditorStatus").textContent = "Cambios sin publicar";
   }
 
-  function createCustomSection() {
+  function createCustomSection(templateKey = "blank") {
     if (!customSchemaReady) return notify("Ejecuta database_custom_sections.sql en Supabase antes de crear secciones.", true);
     const id = crypto.randomUUID().replaceAll("-", "");
+    const template = sectionTemplates[templateKey] || sectionTemplates.blank;
+    const templateContent = template.content || {};
     const section = {
       section_key: `custom_${id}`,
-      label: "Nueva sección",
-      title: "NUEVA SECCIÓN",
-      subtitle: "Edita este texto desde el panel.",
+      label: template.label,
+      title: template.title,
+      subtitle: template.subtitle,
       enabled: true,
       sort_order: 0,
-      layout: "grid",
+      layout: template.layout || "grid",
       section_type: "custom",
       content: {
         anchor_id: `seccion-${id.slice(0, 8)}`,
-        eyebrow: "SECCIÓN PERSONALIZADA",
-        body: "Agrega información, una imagen y los botones que necesites.",
-        theme: "dark",
-        alignment: "left",
-        image_position: "right",
+        ...templateContent,
         image_url: "",
         image_path: "",
         image_alt: "",
-        buttons: []
+        buttons: Array.isArray(templateContent.buttons) ? templateContent.buttons.map((button) => ({ ...button, id: crypto.randomUUID() })) : []
       }
     };
     const footerIndex = sections.findIndex((item) => item.section_key === "footer");
@@ -507,7 +579,8 @@
     selectSection(section.section_key);
     applyPreviewSections();
     $("#sectionEditorStatus").textContent = "Nueva sección sin publicar";
-    notify("Sección creada. Edítala y pulsa Publicar cambios.");
+    $("#sectionTemplateDialog")?.close();
+    notify(`Plantilla “${template.label}” creada. Edítala y pulsa Publicar cambios.`);
   }
 
   function selectedCustomSection() {
@@ -520,7 +593,7 @@
     if (!section) return;
     updateSectionFromInspector();
     const content = normalizeCustomContent(section);
-    content.buttons.push({ id: crypto.randomUUID(), text: "Nuevo botón", url: "#inicio", style: "pink" });
+    content.buttons.push({ id: crypto.randomUUID(), text: "Nuevo botón", url: "#inicio", style: "pink", size: "medium", background_color: "#ff3da1", text_color: "#ffffff" });
     renderCustomSectionControls(section);
     applyPreviewSections();
     $("#sectionEditorStatus").textContent = "Botón nuevo sin publicar";
@@ -914,7 +987,9 @@
     const row = event.target.closest(".section-row");
     if (row && !button) selectSection(row.dataset.sectionKey);
     if (!button) return;
-    if (button.id === "newSectionButton") createCustomSection();
+    if (button.id === "newSectionButton") $("#sectionTemplateDialog").showModal();
+    if (button.dataset.sectionTemplate) createCustomSection(button.dataset.sectionTemplate);
+    if (button.classList.contains("close-template-dialog")) $("#sectionTemplateDialog").close();
     if (button.id === "addCustomButton") addCustomButton();
     if (button.id === "removeCustomImage") removeCustomSectionImage();
     if (button.id === "deleteSectionButton") deleteSection();

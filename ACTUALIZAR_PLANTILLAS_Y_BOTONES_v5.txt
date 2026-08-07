@@ -1,0 +1,37 @@
+FANTASMAS BIKER'S SHOP — PLANTILLAS, COLORES Y BOTONES V5
+
+ARCHIVOS QUE DEBES SUBIR A LA RAÍZ DE GITHUB
+
+1. admin.html
+2. editor.js
+3. editor.css
+4. site-editor.js
+5. editor-public.css
+
+No ejecutes ningún SQL para esta actualización.
+No reemplaces supabase-config.js.
+
+NUEVAS FUNCIONES
+
+- Galería con 6 plantillas al pulsar "+ Nueva":
+  En blanco, Texto centrado, Texto e imagen, Llamada a la acción,
+  Banner con fondo y Menú de botones.
+- Colores libres para fondo, degradado, texto y acento.
+- Altura de la sección: automática, pequeña, mediana, grande o pantalla completa.
+- Ancho del contenido: angosto, normal, amplio o completo.
+- Botones ilimitados con orden, destino, estilo, colores y tamaño individual.
+- Tamaños de botón: pequeño, mediano, grande o ancho completo.
+- Acomodo de botones: automático, fila, columna o cuadrícula del mismo ancho.
+- Posición de botones: izquierda, centro, derecha o ocupando el espacio.
+- Adaptación automática a computadora y celular.
+
+USO RÁPIDO
+
+1. Abre Panel administrativo > Editor de página.
+2. Pulsa "+ Nueva" y elige una plantilla.
+3. Edita los controles del panel derecho.
+4. Usa "+ Botón" para agregar todos los botones necesarios.
+5. Usa las flechas para cambiar su orden y la X para retirar uno.
+6. Pulsa "Publicar cambios".
+
+Después del despliegue de Cloudflare, actualiza con Ctrl + F5.

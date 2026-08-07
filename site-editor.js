@@ -7,6 +7,7 @@
   const systemSectionKeys = ["header","hero","announcement","promotions","raffles","anniversary","catalog_intro","products","events","rewards","allies","contact","footer"];
   const safeId = (value, fallback) => /^[A-Za-z][\w:.-]*$/.test(String(value || "")) ? String(value) : fallback;
   const safeMedia = (value) => /^https?:\/\/[^\s]+$/i.test(String(value || "").trim()) ? String(value).trim() : "";
+  const safeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : fallback;
   const safeHref = (value) => {
     const link = String(value || "").trim();
     return /^(?:#[A-Za-z][\w:.-]*|https?:\/\/[^\s]+|mailto:[^\s]+|tel:[+\d]+|\/(?!\/)[^\s]*|\.\.?\/[^\s]+|[\w.-]+\.html(?:[?#].*)?)$/i.test(link) && !/^(?:javascript|data):/i.test(link) ? link : "";
@@ -28,15 +29,26 @@
       section = document.createElement("section");
       main.append(section);
     }
-    const theme = ["dark","blue","pink","gradient"].includes(content.theme) ? content.theme : "dark";
+    const theme = ["dark","blue","pink","gradient","custom"].includes(content.theme) ? content.theme : "dark";
     const alignment = ["left","center","right"].includes(content.alignment) ? content.alignment : "left";
     const imagePosition = ["right","left","background","none"].includes(content.image_position) ? content.image_position : "right";
+    const sectionHeight = ["auto","compact","normal","large","screen"].includes(content.section_height) ? content.section_height : "auto";
+    const contentWidth = ["narrow","normal","wide","full"].includes(content.content_width) ? content.content_width : "normal";
+    const backgroundMode = ["solid","gradient"].includes(content.background_mode) ? content.background_mode : "solid";
+    const buttonLayout = ["auto","row","stack","grid"].includes(content.button_layout) ? content.button_layout : "auto";
+    const buttonAlignment = ["left","center","right","stretch"].includes(content.button_alignment) ? content.button_alignment : alignment;
+    const buttonGap = ["small","normal","large"].includes(content.button_gap) ? content.button_gap : "normal";
+    const layout = ["grid","featured","compact","carousel"].includes(settings.layout) ? settings.layout : "grid";
     const imageUrl = imagePosition === "none" ? "" : safeMedia(content.image_url);
     const buttons = Array.isArray(content.buttons) ? content.buttons : [];
     section.id = anchorId;
     section.dataset.sectionKey = settings.section_key;
     section.dataset.customSection = "true";
-    section.className = `custom-section editable-section custom-theme-${theme} custom-align-${alignment} custom-image-${imagePosition} layout-${settings.layout || "grid"}`;
+    section.className = `custom-section editable-section custom-theme-${theme} custom-align-${alignment} custom-image-${imagePosition} custom-height-${sectionHeight} custom-width-${contentWidth} custom-bg-${backgroundMode} custom-buttons-${buttonLayout} custom-buttons-align-${buttonAlignment} custom-buttons-gap-${buttonGap} layout-${layout}`;
+    section.style.setProperty("--custom-bg", safeColor(content.background_color, "#0d1015"));
+    section.style.setProperty("--custom-bg-alt", safeColor(content.background_secondary, "#251136"));
+    section.style.setProperty("--custom-text", safeColor(content.text_color, "#ffffff"));
+    section.style.setProperty("--custom-accent", safeColor(content.accent_color, "#28a8ff"));
     section.innerHTML = `
       <div class="custom-section-shell${imageUrl ? "" : " custom-without-image"}">
         <div class="custom-section-copy">
@@ -44,7 +56,12 @@
           <h2 data-section-title>${escapeHtml(settings.title)}</h2>
           ${settings.subtitle ? `<p class="custom-section-subtitle" data-section-subtitle>${escapeHtml(settings.subtitle)}</p>` : '<p class="custom-section-subtitle" data-section-subtitle></p>'}
           ${content.body ? `<div class="custom-section-body">${escapeHtml(content.body).replace(/\r?\n/g, "<br>")}</div>` : ""}
-          ${buttons.length ? `<div class="custom-section-buttons">${buttons.map((button) => `<a class="custom-section-button custom-button-${["pink","blue","dark","light"].includes(button.style) ? button.style : "pink"}"${linkAttributes(button.url)}>${escapeHtml(button.text || "Ver más")}</a>`).join("")}</div>` : ""}
+          ${buttons.length ? `<div class="custom-section-buttons">${buttons.map((button) => {
+            const style = ["pink","blue","dark","light","custom"].includes(button.style) ? button.style : "pink";
+            const size = ["small","medium","large","full"].includes(button.size) ? button.size : "medium";
+            const customStyle = style === "custom" ? ` style="--button-bg:${safeColor(button.background_color, "#ff3da1")};--button-text:${safeColor(button.text_color, "#ffffff")}"` : "";
+            return `<a class="custom-section-button custom-button-${style} custom-button-size-${size}"${customStyle}${linkAttributes(button.url)}>${escapeHtml(button.text || "Ver más")}</a>`;
+          }).join("")}</div>` : ""}
         </div>
         ${imageUrl ? `<div class="custom-section-media"><img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(content.image_alt || settings.title)}" loading="lazy"></div>` : ""}
       </div>`;
