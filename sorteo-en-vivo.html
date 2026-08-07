@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#05060a">
   <title>Sorteo oficial en vivo | Fantasmas Biker's Shop</title>
   <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="sorteo.css?v=11.3">
-  <link rel="stylesheet" href="sorteo-broadcast.css?v=11.3">
+  <link rel="stylesheet" href="sorteo.css?v=11.4">
+  <link rel="stylesheet" href="sorteo-broadcast.css?v=11.4">
 </head>
 <body class="broadcast">
   <div class="broadcast-atmosphere" aria-hidden="true">
@@ -39,9 +39,10 @@
 
       <div class="wheel-stage">
         <div class="wheel-glow"></div>
-        <div class="wheel-pointer" aria-hidden="true"><b></b></div>
+        <div class="wheel-pointer" id="wheelPointer" aria-hidden="true"><b></b></div>
         <div class="wheel" id="wheel">
           <div class="wheel-bolts" aria-hidden="true"></div>
+          <div class="wheel-pegs" id="wheelPegs" aria-hidden="true"></div>
           <div class="wheel-numbers" id="wheelNumbers" aria-hidden="true"></div>
           <div class="wheel-hub">
             <span class="hub-label">NÚMERO</span>
@@ -50,6 +51,7 @@
           </div>
         </div>
         <div class="wheel-caption"><span>AZUL</span><b>✦</b><span>ROSA</span><b>✦</b><span>HERMANDAD</span></div>
+        <button class="mechanical-sound" id="mechanicalSound" type="button">🔊 ACTIVAR SONIDO MECÁNICO</button>
       </div>
     </section>
 
@@ -63,6 +65,6 @@
   <div id="celebration" class="celebration" aria-hidden="true"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="sorteo-en-vivo.js?v=11.3"></script>
+  <script src="sorteo-en-vivo.js?v=11.4"></script>
 </body>
 </html>

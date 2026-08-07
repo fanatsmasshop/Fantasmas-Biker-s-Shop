@@ -47,7 +47,7 @@
     demoTimers.push(setTimeout(() => {
       $("#runFullDemo").classList.remove("running");
       $("#demoStatus").textContent = "Ensayo completo. No se guardó ningún resultado.";
-    }, 13800));
+    }, 16800));
   }
 
   window.addEventListener("message", (event) => {

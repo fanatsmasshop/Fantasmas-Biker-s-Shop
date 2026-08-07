@@ -1,0 +1,32 @@
+FANTASMAS BIKER'S SHOP — ACTUALIZACIÓN V11.4
+RULETA CON COMPORTAMIENTO MECÁNICO
+
+1. Sube los 4 archivos de este ZIP a la raíz del proyecto.
+2. Acepta reemplazar los archivos existentes.
+3. Espera el despliegue de Cloudflare Pages.
+4. Recarga con Ctrl + F5.
+5. Entra al simulador y ejecuta “Ver simulación completa”.
+
+ARCHIVOS INCLUIDOS
+- sorteo-en-vivo.html
+- sorteo-en-vivo.js
+- sorteo-broadcast.css
+- simulador-sorteo.js
+
+CAMBIOS PRINCIPALES
+- Impulso inicial progresivo, como una rueda que recibe fuerza.
+- Inercia y desaceleración física por fricción, sin frenado digital repentino.
+- Pernos metálicos reales entre cada casilla.
+- Pluma articulada que es empujada y rebota con cada perno.
+- Los golpes se vuelven más lentos conforme la rueda pierde velocidad.
+- Último asentamiento mecánico antes de revelar al ganador.
+- Números impresos radialmente como en una ruleta física.
+- Centro fijo sobre el eje mientras gira el disco.
+- Coincidencia exacta entre pluma, casilla ganadora y número anunciado.
+- Sonido mecánico opcional generado por la página, sin archivos de audio.
+
+SONIDO EN LA TRANSMISIÓN
+Antes del sorteo, presiona una vez “ACTIVAR SONIDO MECÁNICO”.
+Esto es necesario porque Chrome bloquea el audio automático.
+
+No requiere cambios en Supabase, SQL ni Cloudflare Worker.

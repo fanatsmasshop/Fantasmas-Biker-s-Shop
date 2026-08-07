@@ -11,8 +11,14 @@
   let totalNumbers = 20;
   let lastPhase = "";
   let wheelStep = 18;
-  let wheelStopAnimation = null;
+  let wheelAnimationFrame = null;
   let winnerRevealTimer = null;
+  let wheelAngle = 0;
+  let wheelVelocity = 0;
+  let audioContext = null;
+  let mechanicalAudioEnabled = false;
+  let lastPegIndex = null;
+  let lastMechanicalClick = 0;
 
   function stopTimers() {
     clearInterval(countdownTimer);
@@ -21,9 +27,9 @@
     countdownTimer = null;
     rollingTimer = null;
     winnerRevealTimer = null;
-    if (wheelStopAnimation) {
-      wheelStopAnimation.cancel();
-      wheelStopAnimation = null;
+    if (wheelAnimationFrame) {
+      cancelAnimationFrame(wheelAnimationFrame);
+      wheelAnimationFrame = null;
     }
   }
 
@@ -38,6 +44,10 @@
       const number = index + 1;
       const angle = wheelStep * index;
       return `<span data-number="${number}" style="--angle:${angle}deg">${String(number).padStart(2, "0")}</span>`;
+    }).join("");
+    $("#wheelPegs").innerHTML = Array.from({ length: visibleTotal }, (_, index) => {
+      const boundaryAngle = (wheelStep * index) - (wheelStep / 2);
+      return `<i style="--peg-angle:${boundaryAngle}deg"></i>`;
     }).join("");
   }
 
@@ -57,30 +67,84 @@
     return ((angle % 360) + 360) % 360;
   }
 
-  function readWheelAngle(wheel) {
-    const transform = getComputedStyle(wheel).transform;
-    if (!transform || transform === "none") return 0;
-    const values = transform.match(/matrix(?:3d)?\(([^)]+)\)/)?.[1].split(",").map(Number);
-    if (!values) return 0;
-    const a = values.length === 6 ? values[0] : values[0];
-    const b = values.length === 6 ? values[1] : values[1];
-    return normalizeAngle(Math.atan2(b, a) * (180 / Math.PI));
+  function playMechanicalClick(force = .5) {
+    if (!mechanicalAudioEnabled || !audioContext || audioContext.state !== "running") return;
+    const now = performance.now();
+    if (now - lastMechanicalClick < 24) return;
+    lastMechanicalClick = now;
+    const duration = .022;
+    const length = Math.floor(audioContext.sampleRate * duration);
+    const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let index = 0; index < length; index += 1) {
+      data[index] = ((Math.random() * 2) - 1) * (1 - (index / length));
+    }
+    const source = audioContext.createBufferSource();
+    const filter = audioContext.createBiquadFilter();
+    const gain = audioContext.createGain();
+    source.buffer = buffer;
+    filter.type = "bandpass";
+    filter.frequency.value = 650 + (Math.min(1, force) * 1050);
+    filter.Q.value = 1.4;
+    gain.gain.value = .035 + (Math.min(1, force) * .055);
+    source.connect(filter).connect(gain).connect(audioContext.destination);
+    source.start();
+  }
+
+  function setMechanicalAngle(angle, velocity = 0, movePointer = true) {
+    wheelAngle = angle;
+    wheelVelocity = velocity;
+    $("#wheel").style.transform = `rotate(${angle}deg)`;
+    $(".wheel-hub").style.transform = `rotate(${-angle}deg)`;
+    if (!movePointer) {
+      $("#wheelPointer").style.setProperty("--pointer-angle", "0deg");
+      return;
+    }
+    const cycle = normalizeAngle(angle + (wheelStep / 2)) / wheelStep;
+    const phase = cycle - Math.floor(cycle);
+    const pegIndex = Math.floor((angle + (wheelStep / 2)) / wheelStep);
+    if (pegIndex !== lastPegIndex) {
+      playMechanicalClick(Math.max(.18, Math.min(1, Math.abs(velocity) / 650)));
+      lastPegIndex = pegIndex;
+    }
+    const force = Math.max(.28, Math.min(1, Math.abs(velocity) / 500));
+    const kick = phase < .14
+      ? -13 * (1 - (phase / .14)) * force
+      : 12 * Math.pow((phase - .14) / .86, 3) * force;
+    $("#wheelPointer").style.setProperty("--pointer-angle", `${kick}deg`);
   }
 
   function markWinningSegment(number, finalAngle) {
     document.querySelectorAll("#wheelNumbers span").forEach((label) => {
       const labelNumber = Number(label.dataset.number);
-      const labelAngle = wheelStep * (labelNumber - 1);
       label.classList.toggle("is-winner", labelNumber === number);
-      label.style.setProperty("--counter-angle", `${-(labelAngle + finalAngle)}deg`);
     });
+    $("#wheel").style.setProperty("--winner-angle", `${finalAngle}deg`);
   }
 
   function resetWheelLabels() {
     document.querySelectorAll("#wheelNumbers span").forEach((label) => {
       label.classList.remove("is-winner");
-      label.style.removeProperty("--counter-angle");
     });
+    $("#wheel").style.removeProperty("--winner-angle");
+  }
+
+  function startMechanicalSpin() {
+    if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
+    const startedAt = performance.now();
+    let previousTime = startedAt;
+    const frame = (now) => {
+      const elapsed = now - startedAt;
+      const deltaSeconds = Math.min(.04, (now - previousTime) / 1000);
+      previousTime = now;
+      const acceleration = Math.min(1, elapsed / 900);
+      const push = 70 + (610 * (1 - Math.pow(1 - acceleration, 2)));
+      const naturalDrag = elapsed > 900 ? Math.min(75, (elapsed - 900) * .014) : 0;
+      const velocity = Math.max(70, push - naturalDrag);
+      setMechanicalAngle(wheelAngle + (velocity * deltaSeconds), velocity, true);
+      wheelAnimationFrame = requestAnimationFrame(frame);
+    };
+    wheelAnimationFrame = requestAnimationFrame(frame);
   }
 
   function rollNumbers() {
@@ -110,39 +174,42 @@
     const winningNumber = Math.max(1, Math.min(totalNumbers, Number(state.winning_number) || 1));
     const winningAngle = wheelStep * (winningNumber - 1);
     const finalAngle = normalizeAngle(-winningAngle);
-    const currentAngle = readWheelAngle(wheel);
+    const currentAngle = wheelAngle;
     const remainingAngle = normalizeAngle(finalAngle - currentAngle);
-    const targetAngle = currentAngle + (360 * 5) + remainingAngle;
+    const incomingVelocity = Math.max(540, wheelVelocity || 620);
+    const preferredDuration = 6.1;
+    const rotations = Math.max(4, Math.round(((incomingVelocity * preferredDuration / 2) - remainingAngle) / 360));
+    const travelAngle = (360 * rotations) + remainingAngle;
+    const duration = Math.max(5.3, Math.min(7.2, (2 * travelAngle) / incomingVelocity));
 
     wheel.classList.remove("spinning");
     resetWheelLabels();
-    wheel.style.transform = `rotate(${currentAngle}deg)`;
-    void wheel.offsetWidth;
     wheel.classList.add("stopping");
-    rollNumbers();
+    $("#wheelNumber").textContent = "…";
     $("#winnerName").textContent = "LA RULETA ESTÁ DECIDIENDO";
-    $("#liveMessage").textContent = "La pluma se detendrá exactamente en el número ganador…";
+    $("#liveMessage").textContent = "La rueda pierde fuerza y cada tope golpea la pluma…";
 
-    wheelStopAnimation = wheel.animate([
-      { transform: `rotate(${currentAngle}deg)` },
-      { transform: `rotate(${targetAngle}deg)` }
-    ], {
-      duration: 3900,
-      easing: "cubic-bezier(.08,.72,.12,1)",
-      fill: "forwards"
-    });
-
-    winnerRevealTimer = setTimeout(() => {
-      clearInterval(rollingTimer);
-      rollingTimer = null;
-      wheelStopAnimation?.cancel();
-      wheelStopAnimation = null;
+    const startedAt = performance.now();
+    const durationMs = duration * 1000;
+    const decelerate = (now) => {
+      const progress = Math.min(1, (now - startedAt) / durationMs);
+      const physicalDistance = travelAngle * ((2 * progress) - (progress * progress));
+      const currentVelocity = (2 * travelAngle / duration) * (1 - progress);
+      setMechanicalAngle(currentAngle + physicalDistance, currentVelocity, true);
+      if (progress < 1) {
+        wheelAnimationFrame = requestAnimationFrame(decelerate);
+        return;
+      }
+      wheelAnimationFrame = null;
       wheel.classList.remove("stopping");
-      wheel.style.transform = `rotate(${finalAngle}deg)`;
+      setMechanicalAngle(finalAngle, 0, false);
+      playMechanicalClick(1);
       markWinningSegment(winningNumber, finalAngle);
       void wheel.offsetWidth;
       wheel.classList.add("winner-hit");
+      $("#wheelPointer").classList.add("pointer-settle");
       setTimeout(() => wheel.classList.remove("winner-hit"), 2100);
+      setTimeout(() => $("#wheelPointer").classList.remove("pointer-settle"), 900);
       $("#wheelNumber").textContent = String(winningNumber).padStart(2, "0");
       $("#winnerName").textContent = state.public_winner
         ? `GANADOR: ${state.public_winner}`
@@ -150,14 +217,14 @@
       $("#liveMessage").textContent = `La pluma confirma el número ${String(winningNumber).padStart(2, "0")}, registrado oficialmente.`;
       $("#winnerCard").classList.add("winner-reveal");
       celebrate();
-    }, 3900);
+    };
+    wheelAnimationFrame = requestAnimationFrame(decelerate);
   }
 
   function alignWheelInstantly(number) {
     const winningNumber = Math.max(1, Math.min(totalNumbers, Number(number) || 1));
     const finalAngle = normalizeAngle(-(wheelStep * (winningNumber - 1)));
-    const wheel = $("#wheel");
-    wheel.style.transform = `rotate(${finalAngle}deg)`;
+    setMechanicalAngle(finalAngle, 0, false);
     markWinningSegment(winningNumber, finalAngle);
   }
 
@@ -175,13 +242,13 @@
     $("#winnerName").textContent = "La rodada está por comenzar";
 
     if (state.phase === "idle") {
-      $("#wheel").style.transform = "rotate(0deg)";
+      setMechanicalAngle(0, 0, false);
       $("#wheelNumber").textContent = "☠";
       $("#liveMessage").textContent = "El sorteo oficial comenzará en breve.";
     }
 
     if (state.phase === "countdown") {
-      $("#wheel").style.transform = "rotate(0deg)";
+      setMechanicalAngle(0, 0, false);
       let count = 5;
       $("#wheelNumber").textContent = count;
       $("#winnerName").textContent = "PREPÁRATE";
@@ -194,11 +261,11 @@
     }
 
     if (state.phase === "spinning") {
-      $("#wheel").style.removeProperty("transform");
       $("#wheel").classList.add("spinning");
+      $("#wheelNumber").textContent = "☠";
       $("#winnerName").textContent = "LA SUERTE ESTÁ RODANDO";
-      $("#liveMessage").textContent = "Seleccionando de forma segura entre los números pagados…";
-      rollNumbers();
+      $("#liveMessage").textContent = "La rueda recibió el impulso inicial…";
+      startMechanicalSpin();
     }
 
     if (state.phase === "winner") showWinner(state);
@@ -252,6 +319,17 @@
   };
   clock();
   setInterval(clock, 1000);
+
+  $("#mechanicalSound").addEventListener("click", async () => {
+    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+    await audioContext.resume();
+    mechanicalAudioEnabled = audioContext.state === "running";
+    $("#mechanicalSound").classList.toggle("active", mechanicalAudioEnabled);
+    $("#mechanicalSound").textContent = mechanicalAudioEnabled
+      ? "🔊 SONIDO MECÁNICO ACTIVO"
+      : "🔇 AUDIO BLOQUEADO · TOCA DE NUEVO";
+    playMechanicalClick(1);
+  });
 
   if (isDemo) {
     document.body.classList.add("demo-broadcast");
