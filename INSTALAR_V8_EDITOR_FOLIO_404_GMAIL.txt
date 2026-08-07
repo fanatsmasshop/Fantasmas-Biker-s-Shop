@@ -1,0 +1,156 @@
+FANTASMAS BIKER'S SHOP
+V8 — EDITOR RÁPIDO, CONSULTA POR FOLIO, 404 Y GMAIL
+============================================================
+
+MEJORAS INCLUIDAS
+- Editor optimizado: ya no reconstruye toda la lista por cada tecla.
+- Vista previa ligera: sin animaciones, carrito flotante ni procesos visuales pesados.
+- Consulta del pedido únicamente con el folio.
+- Folios nuevos de 12 caracteres aleatorios; los folios anteriores siguen funcionando.
+- La consulta pública no entrega nombre, teléfono, correo ni dirección.
+- Nueva página 404 premium y responsive.
+- Correos enviados desde el Gmail oficial mediante Google Apps Script.
+
+
+PASO 1 — SUPABASE
+============================================================
+1. Abre Supabase > SQL Editor.
+2. Ejecuta database_tracking_folio_v8.sql.
+
+Este cambio no borra ni altera pedidos existentes.
+
+
+PASO 2 — GITHUB / CLOUDFLARE PAGES
+============================================================
+Sube a la raíz del repositorio:
+
+- editor.js
+- pedido.html
+- pedido.css
+- pedido.js
+- 404.html
+- 404.css
+- 404.js
+
+No reemplaces supabase-config.js.
+
+Cloudflare Pages reconocerá automáticamente 404.html para las direcciones que
+no existan. Después del despliegue prueba una dirección inventada, por ejemplo:
+https://fantasmas-biker-s-shop.pages.dev/esta-ruta-no-existe
+
+
+PASO 3 — ACTUALIZAR EL WORKER
+============================================================
+1. Cloudflare > Workers & Pages > fantasmas-checkout.
+2. Presiona Edit code.
+3. Reemplaza el código anterior por cloudflare-mercadopago-worker.js.
+4. Presiona Deploy.
+
+Después prueba:
+https://fantasmas-checkout.fantasmasbikersecatepec.workers.dev/health
+
+
+PASO 4 — CREAR EL ENVÍO DESDE GMAIL
+============================================================
+gmail-apps-script.gs NO va en GitHub ni en Cloudflare Pages.
+
+1. Inicia sesión en la cuenta de Gmail oficial de la tienda.
+2. Abre https://script.google.com
+3. Presiona Nuevo proyecto.
+4. Borra el código de ejemplo.
+5. Copia y pega todo gmail-apps-script.gs.
+6. Guarda el proyecto con el nombre:
+   Fantasmas - Avisos de pedidos
+
+
+PASO 5 — CREAR LA CLAVE PRIVADA DEL SCRIPT
+============================================================
+1. Dentro de Apps Script abre Configuración del proyecto (icono de engrane).
+2. Busca Propiedades del script.
+3. Agrega esta propiedad:
+
+   Propiedad: WEBHOOK_SECRET
+   Valor: crea una contraseña aleatoria de por lo menos 32 caracteres.
+
+4. Opcionalmente agrega:
+
+   Propiedad: REPLY_TO_EMAIL
+   Valor: el Gmail oficial al que podrán responder los clientes.
+
+Guarda WEBHOOK_SECRET porque debes colocar exactamente la misma clave en
+Cloudflare. No la publiques, no la subas a GitHub y no la envíes por mensajes.
+
+
+PASO 6 — PUBLICAR GOOGLE APPS SCRIPT
+============================================================
+1. Arriba a la derecha presiona Implementar > Nueva implementación.
+2. En Tipo selecciona Aplicación web.
+3. Configura:
+
+   Ejecutar como: Yo
+   Quién tiene acceso: Cualquier persona
+
+4. Presiona Implementar.
+5. Google solicitará autorización para enviar correos. Autoriza la cuenta.
+6. Copia la URL terminada en /exec.
+
+No uses la URL de prueba terminada en /dev.
+
+
+PASO 7 — CONECTAR GMAIL CON EL WORKER
+============================================================
+Cloudflare > Worker fantasmas-checkout > Settings > Variables and Secrets.
+
+Agrega como TEXT:
+
+GMAIL_WEB_APP_URL
+Valor: URL de Apps Script terminada en /exec.
+
+Agrega como SECRET:
+
+GMAIL_WEB_APP_SECRET
+Valor: exactamente la misma clave WEBHOOK_SECRET del Apps Script.
+
+Presiona Deploy.
+
+Abre nuevamente /health. Debe aparecer:
+
+{"ok":true,"mercado_pago":false,"email_notifications":true,"email_provider":"gmail"}
+
+
+PASO 8 — PRUEBA COMPLETA
+============================================================
+1. Registra un pedido con un correo tuyo y activa recibir actualizaciones.
+2. Debe llegar el primer correo desde el Gmail que publicó Apps Script.
+3. Abre el enlace del correo: el pedido se consulta automáticamente con el folio.
+4. En el panel cambia el pedido a Pago confirmado.
+5. Después cambia a Preparando, Listo y Entregado.
+6. Revisa que llegue un correo distinto por cada estado.
+
+Apps Script evita repetir el correo del mismo estado. Una cuenta Gmail normal
+tiene un límite aproximado de 100 destinatarios diarios; Google Workspace tiene
+un límite mayor. Para el volumen inicial de la tienda normalmente es suficiente.
+
+
+ARCHIVOS DE ESTA ENTREGA
+============================================================
+PARA GITHUB PAGES:
+- editor.js
+- pedido.html
+- pedido.css
+- pedido.js
+- 404.html
+- 404.css
+- 404.js
+
+PARA SUPABASE:
+- database_tracking_folio_v8.sql
+
+PARA CLOUDFLARE WORKER:
+- cloudflare-mercadopago-worker.js
+
+PARA GOOGLE APPS SCRIPT:
+- gmail-apps-script.gs
+
+- INSTALAR_V8_EDITOR_FOLIO_404_GMAIL.txt
+

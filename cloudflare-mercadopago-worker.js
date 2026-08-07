@@ -1,7 +1,9 @@
 // FANTASMAS BIKER'S SHOP — WORKER SEGURO PARA MERCADO PAGO
 // Este archivo se pega en un Worker de Cloudflare. NO va en GitHub Pages.
-// Secrets: MP_ACCESS_TOKEN (opcional), SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY (opcional)
-// Variables: SUPABASE_URL, SITE_URL, ALLOWED_ORIGIN, EMAIL_FROM (opcional)
+// Secrets: MP_ACCESS_TOKEN (opcional), SUPABASE_SERVICE_ROLE_KEY,
+//          GMAIL_WEB_APP_SECRET (opcional), RESEND_API_KEY (opcional)
+// Variables: SUPABASE_URL, SITE_URL, ALLOWED_ORIGIN,
+//            GMAIL_WEB_APP_URL (opcional), EMAIL_FROM (opcional para Resend)
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -25,7 +27,9 @@ function response(request, env, payload, status = 200) {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       "Access-Control-Max-Age": "86400",
-      "Vary": "Origin"
+      "Vary": "Origin",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
     }
   });
 }
@@ -164,26 +168,41 @@ function publicOrder(order) {
     total: order.total,
     payment_method: order.payment_method,
     delivery_method: order.delivery_method,
-    delivery_address: order.delivery_address,
     created_at: order.created_at,
     updated_at: order.updated_at
   };
 }
 
 async function sendOrderEmail(env, order) {
-  if (!order.email_notifications || !order.customer_email || !env.RESEND_API_KEY || !env.EMAIL_FROM) return false;
+  const gmailReady = Boolean(env.GMAIL_WEB_APP_URL && env.GMAIL_WEB_APP_SECRET);
+  const resendReady = Boolean(env.RESEND_API_KEY && env.EMAIL_FROM);
+  if (!order.email_notifications || !order.customer_email || (!gmailReady && !resendReady)) return false;
   if (order.email_last_status === order.status) return false;
   const status = ORDER_STATUS[order.status] || { label: order.status, message: "Tu pedido tiene una actualización." };
   const trackingUrl = `${cleanUrl(env.SITE_URL)}/pedido.html?folio=${encodeURIComponent(order.order_number)}`;
   const itemRows = (Array.isArray(order.items) ? order.items : []).map((item) => `<tr><td style="padding:8px;border-bottom:1px solid #292d36">${Number(item.quantity) || 1} × ${escapeEmailHtml(item.name)}</td><td style="padding:8px;border-bottom:1px solid #292d36;text-align:right">$${(Number(item.unit_price || 0) * Number(item.quantity || 1)).toFixed(2)}</td></tr>`).join("");
   const html = `<!doctype html><html><body style="margin:0;background:#07080b;color:#f5f3ef;font-family:Arial,sans-serif"><div style="max-width:620px;margin:auto;padding:32px"><div style="border-top:5px solid #ff3da1;background:#111318;padding:28px"><p style="margin:0;color:#28a8ff;font-size:12px;font-weight:bold;letter-spacing:2px">FANTASMAS BIKER'S SHOP</p><h1 style="margin:12px 0 4px">${escapeEmailHtml(status.label)}</h1><p style="color:#adb1ba">Pedido ${escapeEmailHtml(order.order_number)}</p><p style="font-size:16px;line-height:1.6">Hola ${escapeEmailHtml(order.customer_name)}, ${escapeEmailHtml(status.message)}</p><table style="width:100%;border-collapse:collapse;margin:22px 0;color:#f5f3ef">${itemRows}</table><p style="font-size:22px;font-weight:bold;text-align:right">Total: $${Number(order.total || 0).toFixed(2)} MXN</p><a href="${escapeEmailHtml(trackingUrl)}" style="display:block;padding:14px;background:#ff3da1;color:white;text-align:center;text-decoration:none;font-weight:bold">CONSULTAR MI PEDIDO</a><p style="margin-top:24px;color:#8f939c;font-size:12px;line-height:1.6">Este correo corresponde a una actualización solicitada durante tu compra. Si necesitas ayuda, contáctanos por WhatsApp.</p></div></div></body></html>`;
+  const subject = `${status.label} · ${order.order_number}`;
   try {
-    const result = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.EMAIL_FROM, to: [order.customer_email], subject: `${status.label} · ${order.order_number}`, html })
-    });
-    if (!result.ok) return false;
+    let sent = false;
+    if (gmailReady) {
+      const gmailResult = await fetch(env.GMAIL_WEB_APP_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ secret: env.GMAIL_WEB_APP_SECRET, to: order.customer_email, subject, html })
+      });
+      const gmailData = await gmailResult.json().catch(() => ({}));
+      sent = gmailResult.ok && gmailData.ok === true;
+    }
+    if (!sent && resendReady) {
+      const resendResult = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: env.EMAIL_FROM, to: [order.customer_email], subject, html })
+      });
+      sent = resendResult.ok;
+    }
+    if (!sent) return false;
     await patchOrder(env, order.id, { email_last_status: order.status, email_last_sent_at: new Date().toISOString() });
     return true;
   } catch (_) {
@@ -277,12 +296,10 @@ async function handleManualOrder(request, env) {
 async function handleTrackOrder(request, env) {
   const payload = await readJson(request);
   const orderNumber = String(payload.order_number || "").trim().toUpperCase().slice(0, 20);
-  const phone = String(payload.phone || "").replace(/\D/g, "").slice(-10);
-  if (!/^FBS-[A-F0-9]{8}$/.test(orderNumber) || phone.length !== 10) throw new Error("Escribe un folio y WhatsApp válidos");
+  if (!/^FBS-[A-F0-9]{8}(?:[A-F0-9]{4})?$/.test(orderNumber)) throw new Error("Escribe un folio válido");
   const rows = await supabaseRequest(env, `shop_orders?select=*&order_number=eq.${encodeURIComponent(orderNumber)}&limit=1`);
   const order = rows?.[0];
-  const savedPhone = String(order?.customer_phone || "").replace(/\D/g, "").slice(-10);
-  if (!order || savedPhone !== phone) throw new Error("No encontramos un pedido con esos datos");
+  if (!order) throw new Error("No encontramos un pedido con ese folio");
   return response(request, env, { ok: true, order: publicOrder(order) });
 }
 
@@ -374,7 +391,10 @@ export default {
     const url = new URL(request.url);
     try {
       assertConfigured(env);
-      if (request.method === "GET" && url.pathname === "/health") return response(request, env, { ok: true, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), email_notifications: Boolean(env.RESEND_API_KEY && env.EMAIL_FROM) });
+      if (request.method === "GET" && url.pathname === "/health") {
+        const emailProvider = env.GMAIL_WEB_APP_URL && env.GMAIL_WEB_APP_SECRET ? "gmail" : env.RESEND_API_KEY && env.EMAIL_FROM ? "resend" : null;
+        return response(request, env, { ok: true, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), email_notifications: Boolean(emailProvider), email_provider: emailProvider });
+      }
       if (request.method === "POST" && url.pathname === "/checkout") return await handleCheckout(request, env);
       if (request.method === "POST" && url.pathname === "/order") return await handleManualOrder(request, env);
       if (request.method === "POST" && url.pathname === "/track") return await handleTrackOrder(request, env);

@@ -16,6 +16,7 @@
   let initialized = false;
   let draggedKey = "";
   let customSchemaReady = false;
+  let previewUpdateTimer = 0;
   const deletedSectionKeys = new Set();
   const pendingMediaRemovals = new Set();
   const fixedSections = new Set(["header", "footer"]);
@@ -544,8 +545,17 @@
       $("#inspectorSectionName").textContent = section.label;
     }
     $$('[data-setting-key]', form).forEach((input) => storeSettings[input.dataset.settingKey] = input.value);
-    renderSections();
-    applyPreviewSections();
+    const selectedRow = $(`.section-row[data-section-key="${section.section_key}"]`, $("#sectionEditor"));
+    if (selectedRow) {
+      const name = $(".section-identity b", selectedRow);
+      const detail = $(".section-identity small", selectedRow);
+      const visibility = $(".section-visible", selectedRow);
+      if (name) name.textContent = section.label;
+      if (detail) detail.textContent = section.enabled ? `${section.layout}${isCustomSection(section) ? " · PERSONALIZADA" : ""}` : "OCULTA";
+      if (visibility) { visibility.classList.toggle("off", !section.enabled); visibility.textContent = section.enabled ? "●" : "○"; }
+    }
+    clearTimeout(previewUpdateTimer);
+    previewUpdateTimer = setTimeout(applyPreviewSections, 90);
     $("#sectionEditorStatus").textContent = "Cambios sin publicar";
   }
 
@@ -709,9 +719,10 @@
     if (!doc.querySelector("#fantasmasBuilderStyle")) {
       const style = doc.createElement("style");
       style.id = "fantasmasBuilderStyle";
-      style.textContent = '[data-section-key]{cursor:pointer;transition:outline .15s}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}';
+      style.textContent = 'html{scroll-behavior:auto!important}html.fantasmas-builder-preview *,html.fantasmas-builder-preview *:before,html.fantasmas-builder-preview *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}html.fantasmas-builder-preview .whatsapp-flotante,html.fantasmas-builder-preview .cart-floating-button,html.fantasmas-builder-preview .cart-overlay,html.fantasmas-builder-preview .cart-drawer,html.fantasmas-builder-preview .payment-return-notice{display:none!important}[data-section-key]{cursor:pointer;transition:outline .15s;content-visibility:auto;contain-intrinsic-size:auto 650px}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}.ticker-track{transform:none!important;will-change:auto!important}';
       doc.head.append(style);
     }
+    doc.documentElement.classList.add("fantasmas-builder-preview");
     bindPreviewSectionClicks(doc);
     applyPreviewSections();
   }
