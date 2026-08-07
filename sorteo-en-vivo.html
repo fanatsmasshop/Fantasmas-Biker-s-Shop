@@ -1,1 +1,68 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sorteo en vivo | Fantasmas Biker's Shop</title><link rel="icon" href="favicon.png"><link rel="stylesheet" href="sorteo.css"></head><body class="broadcast"><div class="broadcast-shell"><img src="logo-shop.png" alt="Fantasmas Biker's Shop"><p id="liveLabel">SORTEO OFICIAL EN VIVO</p><h1 id="liveRaffle">FANTASMAS BIKER'S SHOP</h1><div class="live-prize" id="livePrize">Esperando el inicio…</div><div class="wheel" id="wheel"><span id="wheelNumber">☠</span></div><h2 id="winnerName"></h2><p id="liveMessage">La pantalla se actualizará automáticamente.</p></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><script src="sorteo-en-vivo.js?v=11"></script></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#05060a">
+  <title>Sorteo oficial en vivo | Fantasmas Biker's Shop</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="stylesheet" href="sorteo.css?v=11.1">
+  <link rel="stylesheet" href="sorteo-broadcast.css?v=11.1">
+</head>
+<body class="broadcast">
+  <div class="broadcast-atmosphere" aria-hidden="true">
+    <i></i><i></i><i></i><i></i><i></i><i></i>
+  </div>
+
+  <main class="broadcast-shell">
+    <header class="broadcast-brand">
+      <img src="logo-nombre.png" alt="Fantasmas Biker's Shop">
+      <div class="live-chip"><span></span> SORTEO OFICIAL EN VIVO</div>
+    </header>
+
+    <section class="broadcast-stage">
+      <div class="broadcast-info">
+        <p class="broadcast-kicker">DINÁMICA OFICIAL · FANTASMAS BIKER'S SHOP</p>
+        <h1 id="liveRaffle">FANTASMAS BIKER'S SHOP</h1>
+
+        <div class="prize-card">
+          <small>PREMIO EN JUEGO</small>
+          <strong id="livePrize">Esperando el inicio…</strong>
+        </div>
+
+        <div class="winner-card" id="winnerCard">
+          <small>RESULTADO OFICIAL</small>
+          <h2 id="winnerName">La rodada está por comenzar</h2>
+          <p id="liveMessage">La pantalla se actualizará automáticamente.</p>
+        </div>
+      </div>
+
+      <div class="wheel-stage">
+        <div class="wheel-glow"></div>
+        <div class="wheel-pointer" aria-hidden="true"><b></b></div>
+        <div class="wheel" id="wheel">
+          <div class="wheel-bolts" aria-hidden="true"></div>
+          <div class="wheel-numbers" id="wheelNumbers" aria-hidden="true"></div>
+          <div class="wheel-hub">
+            <span class="hub-label">NÚMERO</span>
+            <strong id="wheelNumber">☠</strong>
+            <span class="hub-brand">FANTASMAS</span>
+          </div>
+        </div>
+        <div class="wheel-caption"><span>AZUL</span><b>✦</b><span>ROSA</span><b>✦</b><span>HERMANDAD</span></div>
+      </div>
+    </section>
+
+    <footer class="broadcast-footer">
+      <span>CD. AZTECA · ECATEPEC</span>
+      <b>☠ TRANSPARENCIA · EMOCIÓN · COMUNIDAD ☠</b>
+      <span id="liveClock"></span>
+    </footer>
+  </main>
+
+  <div id="celebration" class="celebration" aria-hidden="true"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="sorteo-en-vivo.js?v=11.1"></script>
+</body>
+</html>

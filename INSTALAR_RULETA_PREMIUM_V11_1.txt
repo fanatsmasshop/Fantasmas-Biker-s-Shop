@@ -1,0 +1,32 @@
+FANTASMAS BIKER'S SHOP — RULETA PREMIUM V11.1
+================================================
+
+Esta actualización cambia únicamente la apariencia y las animaciones de la
+pantalla pública del sorteo. No modifica pedidos, números, pagos, Supabase,
+Cloudflare Worker ni el panel administrativo.
+
+SUBE Y REEMPLAZA EN GITHUB ESTOS 3 ARCHIVOS:
+
+1. sorteo-en-vivo.html
+2. sorteo-en-vivo.js
+3. sorteo-broadcast.css
+
+Después espera el despliegue de Cloudflare Pages y vuelve a abrir la pantalla
+con el botón “Pantalla en vivo” del control de la rifa.
+
+PARA EVITAR VER LA VERSIÓN ANTERIOR:
+
+- En computadora pulsa Ctrl + F5.
+- En celular abre la página en una pestaña nueva o en modo incógnito.
+
+MEJORAS VISUALES:
+
+- Escenario oficial con identidad Fantasmas.
+- Logo original de la tienda.
+- Aro biker metálico con luces rosa y azul.
+- Todos los números de la rifa alrededor de la ruleta.
+- Movimiento de números durante el giro.
+- Cuenta regresiva integrada.
+- Destello, partículas y golpe visual al revelar ganador.
+- Tarjeta oficial del premio y ganador.
+- Adaptación horizontal para OBS/YouTube y vertical para celular.
