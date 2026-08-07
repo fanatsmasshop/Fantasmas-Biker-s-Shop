@@ -33,6 +33,7 @@
         <button class="nav-item active" data-view="dashboard">▦ <span>Resumen</span></button>
         <button class="nav-item" data-view="editor">▤ <span>Editor de página</span></button>
         <button class="nav-item" data-view="products">◈ <span>Productos</span></button>
+        <button class="nav-item" data-view="orders">🛒 <span>Pedidos</span></button>
         <button class="nav-item" data-view="categories">☷ <span>Categorías</span></button>
         <button class="nav-item" data-view="promotions">⚡ <span>Promociones</span></button>
         <button class="nav-item" data-view="raffles">🎟 <span>Rifas</span></button>
@@ -51,6 +52,7 @@
           <article><span>PRODUCTOS</span><strong id="totalProducts">0</strong><small id="activeProducts">0 activos</small></article>
           <article><span>PROMOCIONES</span><strong id="totalPromotions">0</strong><small id="activePromotions">0 activas</small></article>
           <article><span>DESTACADOS</span><strong id="featuredProducts">0</strong><small>en la portada</small></article>
+          <article><span>PEDIDOS NUEVOS</span><strong id="totalOrders">0</strong><small id="pendingOrders">0 pendientes</small></article>
         </div>
         <div class="welcome"><div><p class="eyebrow">CENTRO DE CONTROL</p><h2>Publica sin editar código.</h2><p>Los cambios realizados aquí se guardan en Supabase y aparecen en la página pública. Las fotografías se almacenan en el espacio privado de administración de la tienda.</p></div><img src="logo-shop.png" alt="Fantasmas Biker's Shop"></div>
       </section>
@@ -140,6 +142,13 @@
         <div class="admin-list" id="productsList"></div>
       </section>
 
+      <section class="view" id="view-orders">
+        <div class="page-head"><div><p class="eyebrow">VENTAS Y COTIZACIONES</p><h1>Pedidos</h1></div><button class="secondary" id="refreshOrdersButton">Actualizar</button></div>
+        <div class="toolbar"><input id="orderSearch" type="search" placeholder="Buscar folio, cliente o teléfono..."><select id="orderFilter"><option value="all">Todos</option><option value="new">Nuevos y pendientes</option><option value="paid">Pagados</option><option value="processing">En preparación</option><option value="fulfilled">Entregados</option><option value="cancelled">Cancelados</option></select></div>
+        <div class="orders-summary" id="ordersSummary"></div>
+        <div class="admin-list" id="ordersList"></div>
+      </section>
+
       <section class="view" id="view-categories">
         <div class="page-head"><div><p class="eyebrow">ORGANIZACIÓN DEL CATÁLOGO</p><h1>Categorías</h1></div></div>
         <form class="quick-form category-form" id="categoryForm"><input type="hidden" name="id"><input name="icon" placeholder="Icono" value="☠" maxlength="8" aria-label="Icono"><input name="name" placeholder="Nombre de la categoría" required maxlength="60"><input class="category-description" name="description" placeholder="Descripción para el catálogo" maxlength="300"><input name="sort_order" type="number" value="0" aria-label="Orden"><label class="quick-check"><input name="active" type="checkbox" checked> Visible</label><button class="primary" type="submit">Guardar</button><button class="secondary" type="reset" id="cancelCategory">Cancelar</button></form>
@@ -188,6 +197,16 @@
           <label>Canal de YouTube<input name="youtube_text" placeholder="@FANTASMASBIKERSHOPCDAZTECA"></label>
           <label>Enlace de YouTube<input name="youtube_url" placeholder="https://youtube.com/..."></label>
           <label class="wide">Enlace general / Linktree<input name="links_url" placeholder="https://linktr.ee/..."></label>
+          <h2 class="form-section-title">Carrito y pagos</h2>
+          <label class="wide">URL del Worker de cobros<input name="checkout_worker_url" placeholder="https://fantasmas-checkout.tu-cuenta.workers.dev"></label>
+          <label>Mercado Pago<select name="mercadopago_enabled"><option value="true">Activado</option><option value="false">Desactivado</option></select></label>
+          <label>Transferencias<select name="transfer_enabled"><option value="true">Activadas</option><option value="false">Desactivadas</option></select></label>
+          <h2 class="form-section-title">Datos para transferencia</h2>
+          <label>Banco<input name="bank_name" placeholder="Nombre del banco"></label>
+          <label>Titular<input name="bank_holder" placeholder="Nombre del titular"></label>
+          <label>CLABE<input name="bank_clabe" inputmode="numeric" maxlength="18" placeholder="18 dígitos"></label>
+          <label>Cuenta o tarjeta<input name="bank_account" inputmode="numeric" placeholder="Opcional"></label>
+          <label class="wide">Indicaciones para transferir<textarea name="transfer_instructions" rows="3" placeholder="Ej. Usa tu folio como concepto y envía el comprobante por WhatsApp."></textarea></label>
           <button class="primary" type="submit">Guardar información</button><span class="form-status" id="settingsStatus"></span>
         </form>
       </section>
@@ -204,10 +223,12 @@
         <label>Orden<input name="sort_order" type="number" value="0"></label>
         <label>Precio actual<input name="price" type="number" min="0" step="0.01"></label>
         <label>Precio anterior<input name="previous_price" type="number" min="0" step="0.01"></label>
+        <label>Existencias<input name="stock" type="number" min="0" step="1" placeholder="Vacío = sin límite"></label>
         <label class="wide">Descripción<textarea name="description" rows="4" maxlength="500"></textarea></label>
         <label class="wide file-label">Fotografía<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
         <label class="check"><input name="active" type="checkbox" checked> Visible en la página</label>
         <label class="check"><input name="featured" type="checkbox"> Producto destacado</label>
+        <label class="check"><input name="online_sale" type="checkbox" checked> Permitir agregar al carrito</label>
       </div>
       <div class="dialog-actions"><span class="form-status" id="productStatus"></span><button type="button" class="secondary close-dialog">Cancelar</button><button class="primary" type="submit">Guardar producto</button></div>
     </form>

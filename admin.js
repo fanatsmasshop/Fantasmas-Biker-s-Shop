@@ -10,6 +10,7 @@
   let client = null;
   let products = [];
   let promotions = [];
+  let orders = [];
 
   function toast(message, error = false) {
     const element = $("#toast");
@@ -83,7 +84,7 @@
   }
 
   async function loadAll() {
-    await Promise.all([loadProducts(), loadPromotions(), loadSettings()]);
+    await Promise.all([loadProducts(), loadPromotions(), loadSettings(), loadOrders()]);
     updateStats();
   }
 
@@ -101,6 +102,20 @@
     renderPromotions();
   }
 
+  async function loadOrders() {
+    const { data, error } = await client.from("shop_orders").select("*").order("created_at", { ascending: false }).limit(300);
+    if (error) {
+      orders = [];
+      $("#ordersList").innerHTML = '<div class="empty">Ejecuta <b>database_shop_checkout.sql</b> en Supabase para activar pedidos.</div>';
+      $("#ordersSummary").innerHTML = "";
+      updateStats();
+      return;
+    }
+    orders = data || [];
+    renderOrders();
+    updateStats();
+  }
+
   async function loadSettings() {
     const { data, error } = await client.from("shop_settings").select("setting_value").eq("setting_key", "store_info").maybeSingle();
     if (error || !data) return;
@@ -116,6 +131,9 @@
     $("#featuredProducts").textContent = products.filter((p) => p.featured && p.active).length;
     $("#totalPromotions").textContent = promotions.length;
     $("#activePromotions").textContent = `${promotions.filter((p) => p.active).length} activas`;
+    const openOrders = orders.filter((order) => ["pending","pending_payment","transfer_pending","quote_requested"].includes(order.status));
+    $("#totalOrders").textContent = openOrders.length;
+    $("#pendingOrders").textContent = `${orders.filter((order) => order.status === "paid").length} pagados por preparar`;
   }
 
   function renderProducts() {
@@ -133,7 +151,7 @@
     $("#productsList").innerHTML = visible.length ? visible.map((product) => `
       <article class="list-card">
         <div class="list-image">${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="">` : "☠"}</div>
-        <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${escapeHtml(product.category)} · Orden ${product.sort_order}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}</div></div>
+        <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${escapeHtml(product.category)} · Orden ${product.sort_order} · ${product.stock === null || product.stock === undefined ? "Existencias sin límite" : `${product.stock} disponibles`}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}<span class="badge ${product.online_sale === false ? "inactive" : "active"}">${product.online_sale === false ? "SIN CARRITO" : "VENTA ONLINE"}</span></div></div>
         <div class="list-actions"><button data-edit-product="${product.id}">Editar</button><button data-toggle-product="${product.id}">${product.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-product="${product.id}">Eliminar</button></div>
       </article>`).join("") : '<div class="empty">No hay productos que coincidan.</div>';
   }
@@ -147,18 +165,69 @@
       </article>`).join("") : '<div class="empty">Aún no has creado promociones.</div>';
   }
 
+  const orderStatusLabels = {
+    pending: "NUEVO", pending_payment: "ESPERANDO PAGO", transfer_pending: "ESPERANDO TRANSFERENCIA", quote_requested: "COTIZACIÓN",
+    paid: "PAGADO", processing: "EN PREPARACIÓN", ready: "LISTO", fulfilled: "ENTREGADO", cancelled: "CANCELADO", payment_failed: "PAGO FALLIDO"
+  };
+
+  function orderMatchesFilter(order, filter) {
+    if (filter === "all") return true;
+    if (filter === "new") return ["pending","pending_payment","transfer_pending","quote_requested","payment_failed"].includes(order.status);
+    if (filter === "paid") return order.status === "paid";
+    if (filter === "processing") return ["processing","ready"].includes(order.status);
+    if (filter === "fulfilled") return order.status === "fulfilled";
+    if (filter === "cancelled") return order.status === "cancelled";
+    return true;
+  }
+
+  function renderOrders() {
+    const search = $("#orderSearch").value.trim().toLowerCase();
+    const filter = $("#orderFilter").value;
+    const visible = orders.filter((order) => {
+      const haystack = `${order.order_number} ${order.customer_name} ${order.customer_phone} ${order.customer_email}`.toLowerCase();
+      return (!search || haystack.includes(search)) && orderMatchesFilter(order, filter);
+    });
+    const newCount = orders.filter((order) => ["pending","pending_payment","transfer_pending","quote_requested"].includes(order.status)).length;
+    const paidCount = orders.filter((order) => order.status === "paid").length;
+    const processingCount = orders.filter((order) => ["processing","ready"].includes(order.status)).length;
+    $("#ordersSummary").innerHTML = `<span><b>${newCount}</b> nuevos</span><span><b>${paidCount}</b> pagados</span><span><b>${processingCount}</b> preparando</span>`;
+    $("#ordersList").innerHTML = visible.length ? visible.map((order) => {
+      const items = Array.isArray(order.items) ? order.items : [];
+      const payment = order.payment_method === "mercadopago" ? "Mercado Pago" : order.payment_method === "transfer" ? "Transferencia" : "Cotización";
+      const delivery = order.delivery_method === "pickup" ? "Recoge en tienda" : `Envío por cotizar${order.delivery_address ? ` · ${order.delivery_address}` : ""}`;
+      const message = encodeURIComponent(`Hola ${order.customer_name}, te contactamos de Fantasmas Biker's Shop por tu pedido ${order.order_number}.`);
+      return `<article class="order-card">
+        <div class="order-card-head"><div><small>${new Date(order.created_at).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small><h3>${escapeHtml(order.order_number)}</h3></div><span class="order-status status-${escapeHtml(order.status)}">${escapeHtml(orderStatusLabels[order.status] || order.status)}</span></div>
+        <div class="order-customer"><b>${escapeHtml(order.customer_name)}</b><span>${escapeHtml(order.customer_phone)}${order.customer_email ? ` · ${escapeHtml(order.customer_email)}` : ""}</span><small>${escapeHtml(delivery)}</small></div>
+        <div class="order-items">${items.map((item) => `<p><span>${Number(item.quantity) || 1} × ${escapeHtml(item.name)}</span><b>${money(Number(item.unit_price || 0) * Number(item.quantity || 1))}</b></p>`).join("")}</div>
+        ${order.customer_notes ? `<p class="order-notes"><b>Notas:</b> ${escapeHtml(order.customer_notes)}</p>` : ""}
+        <div class="order-total"><span>${escapeHtml(payment)}${order.mp_payment_status ? ` · ${escapeHtml(order.mp_payment_status)}` : ""}</span><strong>${money(order.total)}</strong></div>
+        <div class="order-actions">
+          <a href="https://wa.me/52${escapeHtml(String(order.customer_phone).replace(/\D/g, "").replace(/^52(?=\d{10}$)/, ""))}?text=${message}" target="_blank">WhatsApp</a>
+          ${!["paid","processing","ready","fulfilled","cancelled"].includes(order.status) ? `<button data-order-paid="${order.id}">Confirmar pago</button>` : ""}
+          ${order.status === "paid" ? `<button data-order-status="processing" data-order-id="${order.id}">Preparar</button>` : ""}
+          ${order.status === "processing" ? `<button data-order-status="ready" data-order-id="${order.id}">Marcar listo</button>` : ""}
+          ${order.status === "ready" ? `<button data-order-status="fulfilled" data-order-id="${order.id}">Entregado</button>` : ""}
+          ${!["fulfilled","cancelled"].includes(order.status) ? `<button class="delete" data-order-status="cancelled" data-order-id="${order.id}">Cancelar</button>` : ""}
+        </div>
+      </article>`;
+    }).join("") : '<div class="empty">No hay pedidos con ese filtro.</div>';
+  }
+
   function openProduct(product = null) {
     const form = $("#productForm");
     form.reset();
     form.elements.active.checked = true;
+    form.elements.online_sale.checked = true;
     form.elements.sort_order.value = 0;
     $("#productDialogTitle").textContent = product ? "Editar producto" : "Nuevo producto";
     if (product) {
-      ["id","name","category","description","price","previous_price","sort_order"].forEach((key) => form.elements[key].value = product[key] ?? "");
+      ["id","name","category","description","price","previous_price","stock","sort_order"].forEach((key) => form.elements[key].value = product[key] ?? "");
       form.elements.current_image_url.value = product.image_url || "";
       form.elements.current_image_path.value = product.image_path || "";
       form.elements.active.checked = product.active;
       form.elements.featured.checked = product.featured;
+      form.elements.online_sale.checked = product.online_sale !== false;
     }
     $("#productStatus").textContent = "";
     $("#productDialog").showModal();
@@ -214,8 +283,9 @@
         description: form.elements.description.value.trim(),
         price: form.elements.price.value ? Number(form.elements.price.value) : null,
         previous_price: form.elements.previous_price.value ? Number(form.elements.previous_price.value) : null,
+        stock: form.elements.stock.value === "" ? null : Number(form.elements.stock.value),
         sort_order: Number(form.elements.sort_order.value || 0), active: form.elements.active.checked,
-        featured: form.elements.featured.checked, updated_at: new Date().toISOString(),
+        featured: form.elements.featured.checked, online_sale: form.elements.online_sale.checked, updated_at: new Date().toISOString(),
         image_url: uploaded?.url || form.elements.current_image_url.value || null,
         image_path: uploaded?.path || form.elements.current_image_path.value || null
       };
@@ -292,6 +362,21 @@
       const { error } = await client.from("shop_promotions").delete().eq("id", item.id);
       if (!error) { await removeImage(item.image_path); await loadPromotions(); updateStats(); toast("Promoción eliminada."); }
     }
+    if (button.matches("[data-order-paid]")) {
+      if (!confirm("¿Confirmar que este pedido ya fue pagado? También se descontarán las existencias.")) return;
+      const { error } = await client.rpc("confirm_shop_order_payment", { p_order_id: button.dataset.orderPaid, p_payment_id: `manual-${Date.now()}`, p_payment_status: "approved" });
+      if (error) return toast(error.message, true);
+      await Promise.all([loadOrders(), loadProducts()]);
+      toast("Pago confirmado y existencias actualizadas.");
+    }
+    if (button.matches("[data-order-status]")) {
+      const next = button.dataset.orderStatus;
+      if (next === "cancelled" && !confirm("¿Cancelar este pedido?")) return;
+      const { error } = await client.from("shop_orders").update({ status: next, updated_at: new Date().toISOString() }).eq("id", button.dataset.orderId);
+      if (error) return toast(error.message, true);
+      await loadOrders();
+      toast("Estado del pedido actualizado.");
+    }
   });
 
   $$(".nav-item").forEach((button) => button.addEventListener("click", () => {
@@ -304,6 +389,9 @@
   $("#newPromotionButton").addEventListener("click", () => openPromotion());
   $("#productSearch").addEventListener("input", renderProducts);
   $("#productFilter").addEventListener("change", renderProducts);
+  $("#orderSearch").addEventListener("input", renderOrders);
+  $("#orderFilter").addEventListener("change", renderOrders);
+  $("#refreshOrdersButton").addEventListener("click", loadOrders);
   $$(".refresh-data").forEach((button) => button.addEventListener("click", loadAll));
   $("#openMenu").addEventListener("click", () => $("#sidebar").classList.add("open"));
   $("#closeMenu").addEventListener("click", () => $("#sidebar").classList.remove("open"));

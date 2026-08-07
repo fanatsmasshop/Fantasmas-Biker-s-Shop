@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="logos.css">
   <link rel="stylesheet" href="dynamic.css">
   <link rel="stylesheet" href="editor-public.css">
+  <link rel="stylesheet" href="shop-cart.css">
 </head>
 <body>
   <header class="encabezado" data-section-key="header">
@@ -187,10 +188,51 @@
   </footer>
 
   <a class="whatsapp-flotante whatsapp-link" href="https://wa.me/525610329215" target="_blank" aria-label="Contactar por WhatsApp">✆</a>
+
+  <div class="payment-return-notice" id="paymentReturnNotice" hidden><div><b id="paymentReturnTitle"></b><span id="paymentReturnText"></span></div><button type="button" id="closePaymentNotice" aria-label="Cerrar">×</button></div>
+
+  <button class="cart-floating-button" id="cartOpenButton" type="button" aria-label="Abrir carrito"><span>🛒</span><b id="cartCount">0</b><small>Carrito</small></button>
+  <div class="cart-overlay" id="cartOverlay" hidden></div>
+  <aside class="cart-drawer" id="cartDrawer" aria-hidden="true" aria-label="Carrito de compras">
+    <header><div><p>TIENDA OFICIAL</p><h2>Tu carrito</h2></div><button type="button" id="cartCloseButton" aria-label="Cerrar carrito">×</button></header>
+    <div class="cart-items" id="cartItems"></div>
+    <footer>
+      <div class="cart-total"><span>Subtotal</span><strong id="cartSubtotal">$0</strong></div>
+      <small>El envío se cotiza por separado. También puedes recoger en tienda.</small>
+      <button class="cart-primary" type="button" id="cartCheckoutButton">Finalizar pedido</button>
+      <button class="cart-secondary" type="button" id="cartQuoteButton">Cotizar por WhatsApp</button>
+    </footer>
+  </aside>
+
+  <dialog class="checkout-dialog" id="checkoutDialog">
+    <form id="checkoutForm">
+      <header><div><p>PEDIDO FANTASMAS</p><h2>Finalizar compra</h2></div><button type="button" id="checkoutCloseButton" aria-label="Cerrar">×</button></header>
+      <div class="checkout-grid">
+        <label>Nombre completo<input name="name" required maxlength="120" autocomplete="name"></label>
+        <label>WhatsApp<input name="phone" required inputmode="tel" maxlength="20" autocomplete="tel"></label>
+        <label class="checkout-wide">Correo electrónico<input name="email" type="email" maxlength="160" autocomplete="email" placeholder="Para recibir información del pago"></label>
+        <label class="checkout-wide">Entrega<select name="delivery_method"><option value="pickup">Recoger en Fantasmas Biker's Shop</option><option value="shipping_quote">Cotizar envío</option></select></label>
+        <label class="checkout-wide" id="shippingAddressField" hidden>Zona o dirección de envío<textarea name="delivery_address" rows="3" maxlength="500" placeholder="Alcaldía/municipio, colonia, C.P. y referencias"></textarea></label>
+        <label class="checkout-wide">Notas del pedido<textarea name="notes" rows="3" maxlength="500" placeholder="Modelo, color, horario u otra indicación"></textarea></label>
+      </div>
+      <fieldset class="payment-methods"><legend>¿Cómo deseas continuar?</legend>
+        <label id="mercadoPagoMethod"><input type="radio" name="payment_method" value="mercadopago" checked><span><b>Pagar en línea</b><small>Tarjeta, saldo y medios disponibles en Mercado Pago.</small></span></label>
+        <label id="transferMethod"><input type="radio" name="payment_method" value="transfer"><span><b>Transferencia</b><small>Genera el pedido y recibe los datos para transferir.</small></span></label>
+        <label id="quoteMethod"><input type="radio" name="payment_method" value="quote"><span><b>Solicitar cotización</b><small>Envía el carrito por WhatsApp sin pagar todavía.</small></span></label>
+      </fieldset>
+      <div class="checkout-summary"><span>Total de productos</span><strong id="checkoutTotal">$0</strong><small id="checkoutDeliveryNote">Recoger en tienda · sin costo de envío</small></div>
+      <label class="checkout-accept"><input type="checkbox" name="accept" required> Confirmo que mis datos y productos son correctos.</label>
+      <p class="checkout-status" id="checkoutStatus"></p>
+      <div class="checkout-actions"><button type="button" class="cart-secondary" id="checkoutCancelButton">Cancelar</button><button type="submit" class="cart-primary" id="checkoutSubmitButton">Continuar</button></div>
+    </form>
+    <section class="transfer-result" id="transferResult" hidden><p>PEDIDO REGISTRADO</p><h2 id="transferOrderNumber"></h2><div id="bankDetails"></div><p>Envía tu comprobante por WhatsApp para confirmar el pedido.</p><a id="transferWhatsappButton" target="_blank" rel="noopener">Enviar comprobante</a><button type="button" id="transferFinishButton">Terminar</button></section>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
   <script src="site-editor.js"></script>
   <script src="public-data.js"></script>
+  <script src="shop-cart.js"></script>
 </body>
 </html>

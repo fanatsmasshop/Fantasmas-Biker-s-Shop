@@ -60,7 +60,11 @@
       const matchSearch = !search || `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(search);
       return matchCategory && matchSearch;
     });
-    target.innerHTML = filtered.length ? filtered.map((product) => `
+    target.innerHTML = filtered.length ? filtered.map((product) => {
+      const hasStock = product.stock === null || product.stock === undefined || Number(product.stock) > 0;
+      const canBuy = product.price !== null && product.price !== undefined && product.online_sale !== false && hasStock;
+      const stockNote = product.stock === null || product.stock === undefined ? "" : Number(product.stock) > 0 ? `${product.stock} disponible${Number(product.stock) === 1 ? "" : "s"}` : "Agotado";
+      return `
       <article class="producto-publico">
         <div class="producto-imagen">
           ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy">` : "<span>☠</span>"}
@@ -71,9 +75,11 @@
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description)}</p>
           <div class="producto-precio">${product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(product.price)}</strong></div>
-          <a href="https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(`Hola, quiero información del producto: ${product.name}`)}" target="_blank">Pedir información →</a>
+          ${canBuy ? `<button class="product-add-cart" type="button" data-add-to-cart="${product.id}">Agregar al carrito</button>` : `<a href="https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(`Hola, quiero información del producto: ${product.name}`)}" target="_blank">Consultar disponibilidad →</a>`}
+          ${stockNote ? `<small class="product-stock-note">${escapeHtml(stockNote)}</small>` : ""}
         </div>
-      </article>`).join("") : '<p class="catalog-empty">No encontramos productos con ese filtro.</p>';
+      </article>`;
+    }).join("") : '<p class="catalog-empty">No encontramos productos con ese filtro.</p>';
     if (products.length && canReveal(section)) section.hidden = false;
   }
 
@@ -89,7 +95,9 @@
     const { data, error } = await client.from("shop_products").select("*").eq("active", true).order("featured", { ascending: false }).order("sort_order").order("created_at", { ascending: false });
     if (error) return;
     products = data || [];
+    window.FANTASMAS_PRODUCTS = products;
     renderProductFilters(); renderProducts();
+    window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products }));
   }
 
   async function loadCategories() {
@@ -216,6 +224,7 @@
   }
 
   function applyPublicSettings(value) {
+    window.FANTASMAS_STORE_SETTINGS = value || {};
     if (value.whatsapp) storeWhatsApp = whatsappNumber(value.whatsapp);
     applyContentSettings(value);
     renderTicker(value);
