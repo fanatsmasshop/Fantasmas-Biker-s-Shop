@@ -1,0 +1,23 @@
+FANTASMAS BIKER'S SHOP — ACTUALIZACIÓN V11.3
+COINCIDENCIA EXACTA ENTRE PLUMA, RULETA Y RESULTADO
+
+1. Sube los 4 archivos de este ZIP a la raíz de tu proyecto.
+2. Acepta reemplazar los archivos que ya existen.
+3. Espera el despliegue de Cloudflare Pages.
+4. Abre el simulador con Ctrl + F5 y ejecuta “Ver simulación completa”.
+
+ARCHIVOS INCLUIDOS
+- sorteo-en-vivo.html
+- sorteo-en-vivo.js
+- sorteo-broadcast.css
+- simulador-sorteo.js
+
+QUÉ CORRIGE
+- El número ganador termina exactamente bajo la pluma.
+- El número de la pluma y el número grande del centro siempre coinciden.
+- La rueda desacelera antes de revelar el resultado.
+- El segmento ganador queda iluminado para que sea verificable en cámara.
+- La simulación espera a que termine la desaceleración completa.
+- La división visual de la rueda se adapta a la cantidad real de números.
+
+No requiere cambios en Supabase, SQL ni Cloudflare Worker.
