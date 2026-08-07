@@ -18,6 +18,8 @@
   let customSchemaReady = false;
   let previewUpdateTimer = 0;
   let previewPrepared = false;
+  let previewResizeObserver = null;
+  let previewHeightTimer = 0;
   let editorDirty = false;
   const deletedSectionKeys = new Set();
   const pendingMediaRemovals = new Set();
@@ -724,6 +726,47 @@
     try { return $("#sitePreview").contentDocument; } catch (_) { return null; }
   }
 
+  function syncPreviewHeight(doc = previewDocument()) {
+    if (!doc?.body) return;
+    const frame = $("#sitePreview");
+    const bodyTop = doc.body.getBoundingClientRect().top;
+    const contentBottom = [...doc.body.children].reduce((maximum, element) => {
+      if (doc.defaultView.getComputedStyle(element).display === "none" || element.hidden) return maximum;
+      return Math.max(maximum, element.getBoundingClientRect().bottom - bodyTop);
+    }, 0);
+    const height = Math.max(560, Math.ceil(contentBottom));
+    if (Math.abs((parseFloat(frame.style.height) || 0) - height) > 2) frame.style.height = `${height}px`;
+  }
+
+  function schedulePreviewHeight(doc = previewDocument()) {
+    clearTimeout(previewHeightTimer);
+    requestAnimationFrame(() => syncPreviewHeight(doc));
+    previewHeightTimer = setTimeout(() => syncPreviewHeight(doc), 350);
+  }
+
+  function observePreviewHeight(doc) {
+    previewResizeObserver?.disconnect();
+    const PreviewResizeObserver = $("#sitePreview").contentWindow?.ResizeObserver;
+    if (!PreviewResizeObserver || !doc?.body) return;
+    previewResizeObserver = new PreviewResizeObserver(() => schedulePreviewHeight(doc));
+    previewResizeObserver.observe(doc.body);
+    doc.querySelectorAll("img").forEach((image) => image.addEventListener("load", () => schedulePreviewHeight(doc), { once: true }));
+  }
+
+  function scrollPreviewSectionIntoView(section, smooth = true) {
+    const doc = previewDocument();
+    const canvas = $("#builderCanvas");
+    const frame = $("#sitePreview");
+    if (!doc || !canvas || !section) return;
+    const viewport = doc.scrollingElement || doc.documentElement;
+    viewport.scrollTop = 0;
+    const viewportRect = canvas.getBoundingClientRect();
+    const frameTop = frame.getBoundingClientRect().top - viewportRect.top + canvas.scrollTop;
+    const rect = section.getBoundingClientRect();
+    const target = frameTop + rect.top - Math.max(20, (canvas.clientHeight - Math.min(rect.height, canvas.clientHeight)) / 2);
+    canvas.scrollTo({ top: Math.max(0, target), behavior: smooth ? "smooth" : "auto" });
+  }
+
   function preparePreview() {
     const doc = previewDocument();
     if (!doc) return;
@@ -734,15 +777,18 @@
     if (!doc.querySelector("#fantasmasBuilderStyle")) {
       const style = doc.createElement("style");
       style.id = "fantasmasBuilderStyle";
-      style.textContent = 'html,body{scroll-behavior:auto!important;overflow-y:auto!important}html.fantasmas-builder-preview *,html.fantasmas-builder-preview *:before,html.fantasmas-builder-preview *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}html.fantasmas-builder-preview .whatsapp-flotante,html.fantasmas-builder-preview .cart-floating-button,html.fantasmas-builder-preview .cart-overlay,html.fantasmas-builder-preview .cart-drawer,html.fantasmas-builder-preview .payment-return-notice{display:none!important}[data-section-key]{cursor:pointer;transition:outline .15s}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}.ticker-track{transform:none!important;will-change:auto!important}';
+      style.textContent = 'html,body{height:auto!important;min-height:0!important;scroll-behavior:auto!important;overflow:visible!important}html.fantasmas-builder-preview *,html.fantasmas-builder-preview *:before,html.fantasmas-builder-preview *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}html.fantasmas-builder-preview .custom-height-screen{min-height:560px!important}html.fantasmas-builder-preview .whatsapp-flotante,html.fantasmas-builder-preview .cart-floating-button,html.fantasmas-builder-preview .cart-overlay,html.fantasmas-builder-preview .cart-drawer,html.fantasmas-builder-preview .payment-return-notice{display:none!important}[data-section-key]{cursor:pointer;transition:outline .15s}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}.ticker-track{transform:none!important;will-change:auto!important}';
       doc.head.append(style);
     }
     doc.documentElement.classList.add("fantasmas-builder-preview");
+    const viewport = doc.scrollingElement || doc.documentElement;
+    viewport.scrollTop = 0;
     bindPreviewSectionClicks(doc);
     applyPreviewSections();
+    observePreviewHeight(doc);
+    schedulePreviewHeight(doc);
     requestAnimationFrame(() => {
-      const viewport = doc.scrollingElement || doc.documentElement;
-      viewport.scrollTop = 0;
+      $("#builderCanvas").scrollTop = 0;
       previewPrepared = true;
     });
   }
@@ -761,8 +807,8 @@
   function applyPreviewSections() {
     const doc = previewDocument();
     if (!doc) return;
-    const viewport = doc.scrollingElement || doc.documentElement;
-    const previousScroll = previewPrepared ? viewport.scrollTop : 0;
+    const canvas = $("#builderCanvas");
+    const previousScroll = previewPrepared ? canvas.scrollTop : 0;
     const previewSections = sections.map((settings, index) => ({ ...settings, sort_order: (index + 1) * 10 }));
     const previewWindow = $("#sitePreview").contentWindow;
     if (typeof previewWindow?.FANTASMAS_APPLY_SECTIONS === "function") previewWindow.FANTASMAS_APPLY_SECTIONS(previewSections);
@@ -782,14 +828,16 @@
     bindPreviewSectionClicks(doc);
     applyPreviewSettings(doc);
     markPreviewSelection(false);
-    if (previewPrepared) requestAnimationFrame(() => { viewport.scrollTop = previousScroll; });
+    schedulePreviewHeight(doc);
+    if (previewPrepared) requestAnimationFrame(() => { canvas.scrollTop = previousScroll; });
   }
 
   function showPreviewFromTop() {
     const doc = previewDocument();
     if (!doc) return;
     const viewport = doc.scrollingElement || doc.documentElement;
-    viewport.scrollTo({ top: 0, behavior: "smooth" });
+    viewport.scrollTop = 0;
+    $("#builderCanvas").scrollTo({ top: 0, behavior: "smooth" });
     $("#sectionEditorStatus").textContent = "Vista completa desde la portada";
   }
 
@@ -881,7 +929,7 @@
     const selected = doc.querySelector(`[data-section-key="${selectedSectionKey}"]`);
     if (selected) {
       selected.classList.add("builder-selected");
-      if (scroll) selected.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (scroll) scrollPreviewSectionIntoView(selected, true);
     }
   }
 

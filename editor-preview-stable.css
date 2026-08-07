@@ -1,0 +1,23 @@
+/* Vista previa V10.4: un solo desplazamiento, manejado por el lienzo. */
+.builder-canvas {
+  align-items: flex-start;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.builder-canvas iframe {
+  flex: 0 0 auto;
+  height: 560px;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+.builder-inspector textarea {
+  border-color: var(--line);
+}
+
+.builder-inspector textarea:focus {
+  outline: 0;
+  border-color: var(--blue);
+}

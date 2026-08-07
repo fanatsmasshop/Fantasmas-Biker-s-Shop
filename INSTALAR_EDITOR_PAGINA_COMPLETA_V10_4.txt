@@ -1,0 +1,26 @@
+FANTASMAS BIKER'S SHOP — EDITOR V10.4
+REPARACIÓN ESTABLE DE LA VISTA PREVIA COMPLETA
+
+1. Sube los 4 archivos del sitio a la raíz del proyecto. El TXT es solo la guía.
+2. Acepta reemplazar admin.html, editor.js y editor.css.
+3. editor-preview-stable.css es un archivo nuevo.
+4. Espera el despliegue de Cloudflare Pages.
+5. Abre /admin y presiona Ctrl + F5.
+
+ARCHIVOS
+- admin.html
+- editor.js
+- editor.css
+- editor-preview-stable.css
+
+QUÉ CAMBIA
+- El iframe ya no tiene un desplazamiento interno que pueda quedar atrapado.
+- La vista previa crece automáticamente hasta la altura total de la página.
+- El lienzo central es el único que se desplaza.
+- Se puede recorrer desde portada hasta pie de página.
+- Al seleccionar una sección, el lienzo se desplaza a ella sin ocultar las demás.
+- “Desde portada” regresa realmente al inicio de la página completa.
+- Si cargan productos, imágenes o secciones nuevas, la altura se recalcula sola.
+- Una sección de pantalla completa ya no puede agrandar o encerrar infinitamente el iframe.
+
+No modifica la página pública, productos, pedidos, rifas, ruleta, Supabase ni Worker.
