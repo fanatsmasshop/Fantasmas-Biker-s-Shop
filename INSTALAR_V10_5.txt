@@ -1,0 +1,22 @@
+FANTASMAS BIKER'S SHOP — REPARACIÓN V10.5
+
+Problema corregido:
+El editor eliminaba físicamente las secciones base del documento durante una
+carga parcial. Por eso la lista lateral seguía completa, pero la vista previa
+solo podía mostrar "Lanzamiento oficial".
+
+Archivos que debes reemplazar en la raíz de GitHub:
+- admin.html
+- index.html
+- editor.js
+- site-editor.js
+
+Después de subirlos:
+1. Espera el despliegue de Cloudflare Pages.
+2. Abre /admin.
+3. Haz una recarga forzada con Ctrl + Shift + R una sola vez.
+4. Entra a Editor de página. La vista central debe contener desde la portada
+   hasta el pie de página y conservar el desplazamiento exterior.
+
+Esta actualización no modifica productos, pedidos, rifas, ruleta, Supabase,
+pagos, correos ni el Worker.

@@ -81,13 +81,21 @@
   }
 
   function applySections(data) {
-    const currentKeys = new Set(data.map((settings) => settings.section_key));
+    const list = Array.isArray(data) ? data : [];
+    const currentKeys = new Set(list.map((settings) => settings.section_key));
     systemSectionKeys.forEach((sectionKey) => {
-      if (!currentKeys.has(sectionKey)) document.querySelector(`[data-section-key="${sectionKey}"]`)?.remove();
+      const section = document.querySelector(`[data-section-key="${sectionKey}"]`);
+      if (!section || currentKeys.has(sectionKey)) return;
+      // Las secciones del sistema forman parte del HTML base y son la copia de
+      // recuperación del editor. Nunca deben eliminarse físicamente: si una fila
+      // falta en Supabase (por borrado o por una respuesta parcial), se ocultan.
+      // Así una actualización posterior puede volver a mostrarlas sin recargar.
+      section.dataset.editorDisabled = "true";
+      section.hidden = true;
     });
-    renderCustomSections(data);
+    renderCustomSections(list);
     const state = {};
-    data.forEach((settings) => {
+    list.forEach((settings) => {
       state[settings.section_key] = settings;
       const section = document.querySelector(`[data-section-key="${settings.section_key}"]`);
       if (!section) return;
@@ -95,15 +103,15 @@
       section.dataset.editorDisabled = settings.enabled ? "false" : "true";
       section.classList.remove("layout-grid", "layout-featured", "layout-compact", "layout-carousel");
       section.classList.add(`layout-${settings.layout}`);
-      if (!settings.enabled) section.hidden = true;
-      if (isCustom(settings) && settings.enabled) section.hidden = false;
+      section.hidden = !settings.enabled;
       const title = section.querySelector("[data-section-title]");
       const subtitle = section.querySelector("[data-section-subtitle]");
       if (title && Object.prototype.hasOwnProperty.call(settings, "title")) title.textContent = settings.title || "";
       if (subtitle && Object.prototype.hasOwnProperty.call(settings, "subtitle")) subtitle.textContent = settings.subtitle || "";
     });
     window.FANTASMAS_SECTION_STATE = state;
-    return data;
+    document.dispatchEvent(new CustomEvent("fantasmas:sections-applied", { detail: { count: list.length } }));
+    return list;
   }
 
   window.FANTASMAS_RENDER_CUSTOM_SECTIONS = renderCustomSections;

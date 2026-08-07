@@ -20,6 +20,7 @@
   let previewPrepared = false;
   let previewResizeObserver = null;
   let previewHeightTimer = 0;
+  let previewRepairAttempts = 0;
   let editorDirty = false;
   const deletedSectionKeys = new Set();
   const pendingMediaRemovals = new Set();
@@ -813,6 +814,22 @@
     const previewWindow = $("#sitePreview").contentWindow;
     if (typeof previewWindow?.FANTASMAS_APPLY_SECTIONS === "function") previewWindow.FANTASMAS_APPLY_SECTIONS(previewSections);
     else if (typeof previewWindow?.FANTASMAS_RENDER_CUSTOM_SECTIONS === "function") previewWindow.FANTASMAS_RENDER_CUSTOM_SECTIONS(previewSections);
+
+    // Versiones anteriores eliminaban nodos completos durante una carga parcial.
+    // Si detectamos uno de esos documentos dañados, reconstruimos el iframe desde
+    // el HTML base una sola vez. El nuevo site-editor solo oculta, nunca elimina.
+    const missingSystemSections = previewSections
+      .filter((settings) => !isCustomSection(settings))
+      .filter((settings) => !doc.querySelector(`[data-section-key="${settings.section_key}"]`));
+    if (missingSystemSections.length && previewRepairAttempts < 1) {
+      previewRepairAttempts += 1;
+      previewPrepared = false;
+      previewResizeObserver?.disconnect();
+      $("#sectionEditorStatus").textContent = "Reconstruyendo la página completa…";
+      $("#sitePreview").src = `index.html?preview=1&builder=10.5&repair=${Date.now()}`;
+      return;
+    }
+    if (!missingSystemSections.length) previewRepairAttempts = 0;
     previewSections.forEach((settings, index) => {
       const section = doc.querySelector(`[data-section-key="${settings.section_key}"]`);
       if (!section) return;
