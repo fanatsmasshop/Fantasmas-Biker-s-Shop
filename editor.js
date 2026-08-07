@@ -17,6 +17,7 @@
   let draggedKey = "";
   let customSchemaReady = false;
   let previewUpdateTimer = 0;
+  let previewPrepared = false;
   let editorDirty = false;
   const deletedSectionKeys = new Set();
   const pendingMediaRemovals = new Set();
@@ -726,18 +727,24 @@
   function preparePreview() {
     const doc = previewDocument();
     if (!doc) return;
+    previewPrepared = false;
     const previewWindow = $("#sitePreview").contentWindow;
     if (!previewWindow.FANTASMAS_SETTINGS_LOADED) previewWindow.addEventListener("fantasmas:settings-ready", () => applyPreviewSections(), { once: true });
     if (previewWindow.FANTASMAS_SECTIONS_READY?.then) previewWindow.FANTASMAS_SECTIONS_READY.then(() => applyPreviewSections());
     if (!doc.querySelector("#fantasmasBuilderStyle")) {
       const style = doc.createElement("style");
       style.id = "fantasmasBuilderStyle";
-      style.textContent = 'html{scroll-behavior:auto!important}html.fantasmas-builder-preview *,html.fantasmas-builder-preview *:before,html.fantasmas-builder-preview *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}html.fantasmas-builder-preview .whatsapp-flotante,html.fantasmas-builder-preview .cart-floating-button,html.fantasmas-builder-preview .cart-overlay,html.fantasmas-builder-preview .cart-drawer,html.fantasmas-builder-preview .payment-return-notice{display:none!important}[data-section-key]{cursor:pointer;transition:outline .15s;content-visibility:auto;contain-intrinsic-size:auto 650px}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}.ticker-track{transform:none!important;will-change:auto!important}';
+      style.textContent = 'html,body{scroll-behavior:auto!important;overflow-y:auto!important}html.fantasmas-builder-preview *,html.fantasmas-builder-preview *:before,html.fantasmas-builder-preview *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}html.fantasmas-builder-preview .whatsapp-flotante,html.fantasmas-builder-preview .cart-floating-button,html.fantasmas-builder-preview .cart-overlay,html.fantasmas-builder-preview .cart-drawer,html.fantasmas-builder-preview .payment-return-notice{display:none!important}[data-section-key]{cursor:pointer;transition:outline .15s}[data-section-key].builder-selected{outline:4px solid #28a8ff!important;outline-offset:-4px;position:relative}.ticker-track{transform:none!important;will-change:auto!important}';
       doc.head.append(style);
     }
     doc.documentElement.classList.add("fantasmas-builder-preview");
     bindPreviewSectionClicks(doc);
     applyPreviewSections();
+    requestAnimationFrame(() => {
+      const viewport = doc.scrollingElement || doc.documentElement;
+      viewport.scrollTop = 0;
+      previewPrepared = true;
+    });
   }
 
   function bindPreviewSectionClicks(doc) {
@@ -754,6 +761,8 @@
   function applyPreviewSections() {
     const doc = previewDocument();
     if (!doc) return;
+    const viewport = doc.scrollingElement || doc.documentElement;
+    const previousScroll = previewPrepared ? viewport.scrollTop : 0;
     const previewSections = sections.map((settings, index) => ({ ...settings, sort_order: (index + 1) * 10 }));
     const previewWindow = $("#sitePreview").contentWindow;
     if (typeof previewWindow?.FANTASMAS_APPLY_SECTIONS === "function") previewWindow.FANTASMAS_APPLY_SECTIONS(previewSections);
@@ -773,6 +782,15 @@
     bindPreviewSectionClicks(doc);
     applyPreviewSettings(doc);
     markPreviewSelection(false);
+    if (previewPrepared) requestAnimationFrame(() => { viewport.scrollTop = previousScroll; });
+  }
+
+  function showPreviewFromTop() {
+    const doc = previewDocument();
+    if (!doc) return;
+    const viewport = doc.scrollingElement || doc.documentElement;
+    viewport.scrollTo({ top: 0, behavior: "smooth" });
+    $("#sectionEditorStatus").textContent = "Vista completa desde la portada";
   }
 
   function applyPreviewSettings(doc) {
@@ -1023,6 +1041,7 @@
     if (button.dataset.moveCustomButton) changeCustomButton(button.closest("[data-custom-button]")?.dataset.customButton, button.dataset.moveCustomButton);
     if (button.dataset.toggleSection) { const section = sections.find((item) => item.section_key === button.dataset.toggleSection); section.enabled = !section.enabled; renderSections(); selectSection(section.section_key, false); applyPreviewSections(); $("#sectionEditorStatus").textContent = "Cambios sin publicar"; }
     if (button.dataset.device) { $$(".device-button").forEach((item) => item.classList.toggle("active", item === button)); $("#builderCanvas").classList.toggle("mobile", button.dataset.device === "mobile"); }
+    if (button.id === "previewHomeButton") showPreviewFromTop();
     if (button.dataset.editCategory) { const item = categories.find((x) => x.id === button.dataset.editCategory); const form = $("#categoryForm"); form.elements.id.value = item.id; form.elements.icon.value = item.icon || "☠"; form.elements.name.value = item.name; form.elements.description.value = item.description || ""; form.elements.sort_order.value = item.sort_order; form.elements.active.checked = item.active; }
     if (button.dataset.toggleCategory) { const item = categories.find((x) => x.id === button.dataset.toggleCategory); await client.from("shop_categories").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id); await loadEditorData(); }
     if (button.dataset.deleteCategory) { const item = categories.find((x) => x.id === button.dataset.deleteCategory); if (confirm(`¿Eliminar la categoría “${item.name}”?`)) { await client.from("shop_categories").delete().eq("id", item.id); await loadEditorData(); } }
