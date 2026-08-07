@@ -2,6 +2,13 @@
   const STORAGE_KEY = "fantasmas_shop_cart_v1";
   const CUSTOMER_KEY = "fantasmas_shop_customer_v1";
   const $ = (selector, root = document) => root.querySelector(selector);
+  if (new URLSearchParams(location.search).has("preview")) {
+    ["#cartOpenButton", "#cartOverlay", "#cartDrawer", "#checkoutDialog", "#paymentReturnNotice"].forEach((selector) => {
+      const element = $(selector);
+      if (element) element.hidden = true;
+    });
+    return;
+  }
   const money = (value) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 2 }).format(Number(value || 0));
   const escapeHtml = (value) => String(value || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   const digits = (value) => String(value || "").replace(/\D/g, "");
@@ -9,6 +16,7 @@
   let products = Array.isArray(window.FANTASMAS_PRODUCTS) ? window.FANTASMAS_PRODUCTS : [];
   let settings = window.FANTASMAS_STORE_SETTINGS || {};
   let emailAvailabilityWorker = "";
+  let checkoutRequestKey = "";
 
   function readStorage(key, fallback) {
     try {
@@ -67,6 +75,7 @@
   }
 
   function addProduct(id) {
+    checkoutRequestKey = "";
     const product = productById(id);
     if (!product || product.price === null || product.price === undefined || product.online_sale === false) return;
     const stock = product.stock === null || product.stock === undefined ? null : Number(product.stock);
@@ -84,6 +93,7 @@
   }
 
   function changeQuantity(id, change) {
+    checkoutRequestKey = "";
     const item = cart.find((entry) => entry.id === id);
     if (!item) return;
     const product = productById(id);
@@ -195,7 +205,9 @@
   }
 
   function orderPayload(form) {
+    if (!checkoutRequestKey) checkoutRequestKey = crypto.randomUUID();
     return {
+      request_key: checkoutRequestKey,
       customer: { name: form.elements.name.value.trim(), phone: form.elements.phone.value.trim(), email: form.elements.email.value.trim() },
       delivery_method: form.elements.delivery_method.value,
       delivery_address: form.elements.delivery_address.value.trim(),
@@ -259,6 +271,7 @@
     $("#transferWhatsappButton").href = whatsappUrl(`Hola, envío el comprobante del pedido ${order.order_number} por ${money(order.total)}.\nCliente: ${payload.customer.name}`);
     $("#transferTrackingButton").href = `pedido.html?folio=${encodeURIComponent(order.order_number)}`;
     cart = [];
+    checkoutRequestKey = "";
     writeStorage(STORAGE_KEY, cart);
     renderCart();
   }
@@ -279,6 +292,7 @@
       if (payload.payment_method === "mercadopago") {
         const order = await postWorker("/checkout", payload);
         status.textContent = "Abriendo Mercado Pago…";
+        checkoutRequestKey = "";
         location.href = order.checkout_url;
         return;
       }
@@ -293,6 +307,7 @@
         orderNumber = order.order_number || "";
       } catch (_) {}
       window.open(whatsappUrl(cartMessage(payload, orderNumber)), "_blank", "noopener");
+      if (orderNumber) checkoutRequestKey = "";
       status.textContent = orderNumber ? `Cotización registrada como ${orderNumber}.` : "La cotización se abrió en WhatsApp.";
     } catch (error) {
       status.textContent = error.message;
@@ -331,7 +346,7 @@
     if (add) addProduct(add.dataset.addToCart);
     const row = event.target.closest("[data-cart-item]");
     if (row && event.target.closest("[data-cart-change]")) changeQuantity(row.dataset.cartItem, Number(event.target.closest("[data-cart-change]").dataset.cartChange));
-    if (row && event.target.closest("[data-cart-remove]")) { cart = cart.filter((item) => item.id !== row.dataset.cartItem); writeStorage(STORAGE_KEY, cart); renderCart(); }
+    if (row && event.target.closest("[data-cart-remove]")) { checkoutRequestKey = ""; cart = cart.filter((item) => item.id !== row.dataset.cartItem); writeStorage(STORAGE_KEY, cart); renderCart(); }
   });
 
   $("#cartOpenButton").addEventListener("click", openCart);

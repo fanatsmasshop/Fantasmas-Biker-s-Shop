@@ -259,6 +259,13 @@ button {
   margin: 0;
   font-size: 38px;
 }
+.head-actions .has-unsaved {
+  box-shadow: 0 0 0 3px #ff3da12e, 0 0 22px #ff3da145;
+  animation: unsaved-pulse 1.8s ease-in-out infinite;
+}
+@keyframes unsaved-pulse {
+  50% { filter: brightness(1.22); }
+}
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -449,6 +456,39 @@ button {
   color: var(--blue);
   font-size: 11px;
 }
+.integration-check {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, auto);
+  gap: 10px 14px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #090b0f;
+}
+.integration-check b,
+.integration-check small {
+  display: block;
+}
+.integration-check small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.integration-check p {
+  grid-column: 1/-1;
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.email-test-box {
+  grid-template-columns: minmax(180px, .8fr) minmax(220px, 1fr) auto;
+}
+.diagnostic-ok { color: var(--success)!important; }
+.diagnostic-warning { color: #ffd05b!important; }
+.diagnostic-error { color: var(--danger)!important; }
 dialog {
   width: min(760px, calc(100% - 30px));
   max-height: 92vh;
@@ -737,6 +777,13 @@ dialog::backdrop {
   .form-grid,
   .settings-form {
     grid-template-columns: 1fr;
+  }
+  .integration-check,
+  .email-test-box {
+    grid-template-columns: 1fr;
+  }
+  .integration-check > * {
+    grid-column: 1;
   }
   .form-grid .wide,
   .settings-form .wide {

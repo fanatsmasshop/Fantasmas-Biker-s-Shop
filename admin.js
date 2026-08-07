@@ -11,6 +11,8 @@
   let products = [];
   let productPage = 1;
   const PRODUCTS_PER_PAGE = 25;
+  let orderPage = 1;
+  const ORDERS_PER_PAGE = 30;
   let promotions = [];
   let orders = [];
   let storeSettings = {};
@@ -81,6 +83,7 @@
     loginView.hidden = true;
     adminApp.hidden = false;
     $("#adminEmail").textContent = user.email || "Administrador";
+    if ($("#testEmailAddress")) $("#testEmailAddress").value = user.email || "";
     await loadAll();
   }
 
@@ -128,15 +131,29 @@
   }
 
   async function loadOrders() {
-    const { data, error } = await client.from("shop_orders").select("*").order("created_at", { ascending: false }).limit(300);
-    if (error) {
+    const allRows = [];
+    let offset = 0;
+    let total = null;
+    let loadError = null;
+    for (let request = 0; request < 100; request += 1) {
+      const { data, error, count } = await client.from("shop_orders").select("*", { count: request === 0 ? "exact" : undefined })
+        .order("created_at", { ascending: false }).order("id").range(offset, offset + 499);
+      if (error) { loadError = error; break; }
+      if (request === 0 && Number.isFinite(count)) total = count;
+      if (!data?.length) break;
+      allRows.push(...data); offset += data.length;
+      if (total !== null && offset >= total) break;
+      if (total === null && data.length < 500) break;
+    }
+    if (loadError) {
       orders = [];
       $("#ordersList").innerHTML = '<div class="empty">Ejecuta <b>database_shop_checkout.sql</b> en Supabase para activar pedidos.</div>';
       $("#ordersSummary").innerHTML = "";
+      $("#ordersPagination").innerHTML = "";
       updateStats();
       return;
     }
-    orders = data || [];
+    orders = allRows;
     renderOrders();
     updateStats();
   }
@@ -166,7 +183,7 @@
     const search = $("#productSearch").value.trim().toLowerCase();
     const filter = $("#productFilter").value;
     const visible = products.filter((product) => {
-      const matchSearch = !search || `${product.name} ${product.category}`.toLowerCase().includes(search);
+      const matchSearch = !search || `${product.sku || ""} ${product.name} ${product.category}`.toLowerCase().includes(search);
       const matchFilter = filter === "all" ||
         (filter === "active" && product.active) ||
         (filter === "inactive" && !product.active) ||
@@ -182,7 +199,7 @@
     $("#productsList").innerHTML = pageRows.length ? pageRows.map((product) => `
       <article class="list-card">
         <div class="list-image">${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="">` : "☠"}</div>
-        <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${escapeHtml(product.category)} · Orden ${product.sort_order} · ${product.stock === null || product.stock === undefined ? "Existencias sin límite" : `${product.stock} disponibles`}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}<span class="badge ${product.online_sale === false ? "inactive" : "active"}">${product.online_sale === false ? "SIN CARRITO" : "VENTA ONLINE"}</span></div></div>
+        <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${product.sku ? `SKU ${escapeHtml(product.sku)} · ` : ""}${escapeHtml(product.category)} · Orden ${product.sort_order} · ${product.stock === null || product.stock === undefined ? "Existencias sin límite" : `${product.stock} disponibles`}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}<span class="badge ${product.online_sale === false ? "inactive" : "active"}">${product.online_sale === false ? "SIN CARRITO" : "VENTA ONLINE"}</span></div></div>
         <div class="list-actions"><button data-edit-product="${product.id}">Editar</button><button data-toggle-product="${product.id}">${product.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-product="${product.id}">Eliminar</button></div>
       </article>`).join("") : '<div class="empty">No hay productos que coincidan.</div>';
     $("#productsPagination").innerHTML = visible.length ? `
@@ -239,6 +256,7 @@
       if (!name) throw new Error(`La fila ${index + 2} no tiene nombre.`);
       return {
         name,
+        sku: read(row, ["sku", "codigo", "codigo_interno"]).trim().toUpperCase() || null,
         category: read(row, ["categoria", "category"]).trim() || "General",
         description: read(row, ["descripcion", "description"]).trim(),
         price: csvNumber(read(row, ["precio", "price"])),
@@ -253,16 +271,14 @@
       };
     });
     if (imported.length > 1000) throw new Error("Importa máximo 1,000 productos por archivo.");
-    if (!confirm(`Se agregarán ${imported.length} productos. ¿Continuar?`)) return 0;
-    for (let index = 0; index < imported.length; index += 100) {
-      const { error } = await client.from("shop_products").insert(imported.slice(index, index + 100));
-      if (error) throw new Error(`No se pudo importar el bloque ${Math.floor(index / 100) + 1}: ${error.message}`);
-    }
-    return imported.length;
+    if (!confirm(`Se procesarán ${imported.length} productos. Los SKU existentes se actualizarán y los nuevos se agregarán. ¿Continuar?`)) return null;
+    const { data, error } = await client.rpc("import_shop_products", { p_products: imported });
+    if (error) throw new Error(`${error.message}. Ejecuta database_repair_v10.sql si aún no instalaste la actualización.`);
+    return data || { total: imported.length, inserted: imported.length, updated: 0 };
   }
 
   function downloadProductsTemplate() {
-    const content = '\uFEFFnombre;categoria;descripcion;precio;precio_anterior;existencias;orden;visible;destacado;venta_online;imagen_url\nEjemplo de producto;Accesorios;Descripción del producto;120;;10;0;si;no;si;';
+    const content = '\uFEFFsku;nombre;categoria;descripcion;precio;precio_anterior;existencias;orden;visible;destacado;venta_online;imagen_url\nEJEMPLO-001;Ejemplo de producto;Accesorios;Descripción del producto;120;;10;0;si;no;si;';
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
     link.download = "plantilla-productos-fantasmas.csv";
@@ -305,7 +321,12 @@
     const paidCount = orders.filter((order) => order.status === "paid").length;
     const processingCount = orders.filter((order) => ["processing","ready"].includes(order.status)).length;
     $("#ordersSummary").innerHTML = `<span><b>${newCount}</b> nuevos</span><span><b>${paidCount}</b> pagados</span><span><b>${processingCount}</b> preparando</span>`;
-    $("#ordersList").innerHTML = visible.length ? visible.map((order) => {
+    const totalPages = Math.max(1, Math.ceil(visible.length / ORDERS_PER_PAGE));
+    orderPage = Math.min(Math.max(1, orderPage), totalPages);
+    const start = (orderPage - 1) * ORDERS_PER_PAGE;
+    const pageRows = visible.slice(start, start + ORDERS_PER_PAGE);
+    $("#ordersPagination").innerHTML = visible.length ? `<span>Mostrando ${start + 1}–${Math.min(start + ORDERS_PER_PAGE, visible.length)} de <b>${visible.length}</b></span><div><button type="button" data-order-page="prev" ${orderPage === 1 ? "disabled" : ""}>← Anterior</button><b>Página ${orderPage} de ${totalPages}</b><button type="button" data-order-page="next" ${orderPage === totalPages ? "disabled" : ""}>Siguiente →</button></div>` : "";
+    $("#ordersList").innerHTML = pageRows.length ? pageRows.map((order) => {
       const items = Array.isArray(order.items) ? order.items : [];
       const payment = order.payment_method === "mercadopago" ? "Mercado Pago" : order.payment_method === "transfer" ? "Transferencia" : "Cotización";
       const delivery = order.delivery_method === "pickup" ? "Recoge en tienda" : `Envío por cotizar${order.delivery_address ? ` · ${order.delivery_address}` : ""}`;
@@ -336,7 +357,7 @@
     form.elements.sort_order.value = 0;
     $("#productDialogTitle").textContent = product ? "Editar producto" : "Nuevo producto";
     if (product) {
-      ["id","name","category","description","price","previous_price","stock","sort_order"].forEach((key) => form.elements[key].value = product[key] ?? "");
+      ["id","sku","name","category","description","price","previous_price","stock","sort_order"].forEach((key) => form.elements[key].value = product[key] ?? "");
       form.elements.current_image_url.value = product.image_url || "";
       form.elements.current_image_path.value = product.image_path || "";
       form.elements.active.checked = product.active;
@@ -393,7 +414,7 @@
       const file = form.elements.image.files[0];
       const uploaded = await uploadImage(file, "products");
       const payload = {
-        name: form.elements.name.value.trim(), category: form.elements.category.value.trim(),
+        name: form.elements.name.value.trim(), sku: form.elements.sku.value.trim().toUpperCase() || null, category: form.elements.category.value.trim(),
         description: form.elements.description.value.trim(),
         price: form.elements.price.value ? Number(form.elements.price.value) : null,
         previous_price: form.elements.previous_price.value ? Number(form.elements.previous_price.value) : null,
@@ -466,6 +487,65 @@
     return response;
   }
 
+  function configuredWorkerUrl() {
+    const formValue = $("#settingsForm")?.elements.checkout_worker_url?.value || storeSettings.checkout_worker_url || "";
+    const worker = String(formValue).trim().replace(/\/+$/, "");
+    if (!/^https:\/\//i.test(worker)) throw new Error("Primero guarda una URL válida del Worker.");
+    return worker;
+  }
+
+  async function adminWorkerRequest(path, payload = {}) {
+    const worker = configuredWorkerUrl();
+    const { data } = await client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("La sesión administrativa terminó. Vuelve a iniciar sesión.");
+    const result = await fetch(`${worker}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    const responseBody = await result.json().catch(() => ({}));
+    if (!result.ok || !responseBody.ok) {
+      const detail = Array.isArray(responseBody.attempts) && responseBody.attempts.length
+        ? responseBody.attempts.map((attempt) => `${attempt.provider || "correo"}: ${attempt.error}`).join(" · ")
+        : responseBody.error;
+      throw new Error(detail || `El Worker respondió con error ${result.status}.`);
+    }
+    return responseBody;
+  }
+
+  async function checkWorkerConnection() {
+    const status = $("#workerDiagnostics");
+    const button = $("#checkWorkerButton");
+    status.textContent = "Comprobando…"; button.disabled = true;
+    try {
+      const result = await fetch(`${configuredWorkerUrl()}/health`, { cache: "no-store" });
+      const data = await result.json().catch(() => ({}));
+      if (!result.ok || !data.ok) throw new Error(data.error || `Error ${result.status}`);
+      const email = data.email_notifications ? `Correo activo mediante ${data.email_provider}` : "Correo sin configurar";
+      status.textContent = `Worker ${data.version || "anterior"} conectado · ${email} · Mercado Pago ${data.mercado_pago ? "activo" : "inactivo"}.`;
+      status.className = data.email_notifications ? "diagnostic-ok" : "diagnostic-warning";
+    } catch (error) {
+      status.textContent = `No se pudo conectar: ${error.message}`;
+      status.className = "diagnostic-error";
+    } finally { button.disabled = false; }
+  }
+
+  async function sendTestEmail() {
+    const status = $("#emailTestStatus");
+    const button = $("#sendTestEmailButton");
+    const email = $("#testEmailAddress").value.trim();
+    status.textContent = "Enviando prueba…"; status.className = ""; button.disabled = true;
+    try {
+      const data = await adminWorkerRequest("/admin/email-test", { email });
+      status.textContent = `Correo enviado mediante ${data.provider}${data.remaining !== null && data.remaining !== undefined ? ` · cuota restante: ${data.remaining}` : ""}.`;
+      status.className = "diagnostic-ok";
+    } catch (error) {
+      status.textContent = `Falló la prueba: ${error.message}`;
+      status.className = "diagnostic-error";
+    } finally { button.disabled = false; }
+  }
+
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("button");
     if (!button) return;
@@ -473,6 +553,11 @@
       productPage += button.dataset.productPage === "next" ? 1 : -1;
       renderProducts();
       $("#view-products").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (button.matches("[data-order-page]")) {
+      orderPage += button.dataset.orderPage === "next" ? 1 : -1;
+      renderOrders();
+      $("#view-orders").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (button.matches("[data-edit-product]")) openProduct(products.find((p) => p.id === button.dataset.editProduct));
     if (button.matches("[data-edit-promotion]")) openPromotion(promotions.find((p) => p.id === button.dataset.editPromotion));
@@ -530,11 +615,11 @@
     const file = event.target.files[0];
     if (!file) return;
     try {
-      const total = await importProductsCsv(file);
-      if (total) {
+      const result = await importProductsCsv(file);
+      if (result) {
         productPage = 1;
         await loadProducts(); updateStats();
-        toast(`${total} productos importados correctamente.`);
+        toast(`${result.total} productos procesados: ${result.inserted} nuevos y ${result.updated} actualizados.`);
       }
     } catch (error) { toast(error.message, true); }
     event.target.value = "";
@@ -542,9 +627,11 @@
   $("#newPromotionButton").addEventListener("click", () => openPromotion());
   $("#productSearch").addEventListener("input", () => { productPage = 1; renderProducts(); });
   $("#productFilter").addEventListener("change", () => { productPage = 1; renderProducts(); });
-  $("#orderSearch").addEventListener("input", renderOrders);
-  $("#orderFilter").addEventListener("change", renderOrders);
+  $("#orderSearch").addEventListener("input", () => { orderPage = 1; renderOrders(); });
+  $("#orderFilter").addEventListener("change", () => { orderPage = 1; renderOrders(); });
   $("#refreshOrdersButton").addEventListener("click", loadOrders);
+  $("#checkWorkerButton").addEventListener("click", checkWorkerConnection);
+  $("#sendTestEmailButton").addEventListener("click", sendTestEmail);
   $$(".refresh-data").forEach((button) => button.addEventListener("click", loadAll));
   $("#openMenu").addEventListener("click", () => $("#sidebar").classList.add("open"));
   $("#closeMenu").addEventListener("click", () => $("#sidebar").classList.remove("open"));

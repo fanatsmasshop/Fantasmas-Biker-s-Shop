@@ -1,0 +1,163 @@
+FANTASMAS BIKER'S SHOP — ACTUALIZACIÓN V10
+REPARACIÓN COMPLETA: GMAIL, CATÁLOGO, EDITOR, PEDIDOS E INVENTARIO
+=================================================================
+
+IMPORTANTE
+-----------------------------------------------------------------
+- No subas ni reemplaces supabase-config.js.
+- Todos los archivos siguen en la raíz, sin carpetas.
+- El ZIP contiene únicamente archivos nuevos o modificados.
+- Sigue los pasos en este orden.
+
+
+PASO 1 — SUPABASE
+-----------------------------------------------------------------
+1. Abre Supabase > SQL Editor.
+2. Crea una consulta nueva.
+3. Copia y ejecuta completo:
+
+   database_repair_v10.sql
+
+Este archivo:
+- Agrega SKU opcional a los productos.
+- Evita SKU duplicados.
+- Activa importación transaccional de hasta 1,000 productos.
+- Actualiza un producto si su SKU ya existía.
+- Evita repetir el mismo intento de pedido.
+- Valida y descuenta existencias de forma atómica al confirmar el pago.
+
+No borra productos, pedidos, usuarios, imágenes ni configuraciones.
+
+
+PASO 2 — GITHUB / CLOUDFLARE PAGES
+-----------------------------------------------------------------
+Sube a la raíz del repositorio y reemplaza:
+
+- admin.html
+- admin.js
+- admin.css
+- index.html
+- editor.js
+- public-data.js
+- shop-cart.js
+
+Espera a que Cloudflare Pages termine el despliegue. Después usa Ctrl+F5.
+
+
+PASO 3 — ACTUALIZAR EL WORKER
+-----------------------------------------------------------------
+cloudflare-mercadopago-worker.js NO va en GitHub Pages.
+
+1. Cloudflare > Workers & Pages > fantasmas-checkout.
+2. Abre Edit code.
+3. Sustituye todo el código por cloudflare-mercadopago-worker.js.
+4. Presiona Deploy.
+5. Abre:
+
+   https://fantasmas-checkout.fantasmasbikersecatepec.workers.dev/health
+
+Debe mostrar version 10.0.0. Si muestra una versión anterior, el Worker nuevo
+todavía no fue publicado.
+
+
+PASO 4 — ACTUALIZAR GOOGLE APPS SCRIPT
+-----------------------------------------------------------------
+gmail-apps-script.gs NO va en GitHub ni en Cloudflare Pages.
+
+1. Abre el proyecto “Fantasmas - Avisos de pedidos”.
+2. Sustituye todo el código por gmail-apps-script.gs.
+3. Guarda con Ctrl+S. Arriba ya no debe decir “Cambios sin guardar”.
+4. Abre Implementar > Gestionar implementaciones.
+5. Edita la implementación de Aplicación web.
+6. En versión selecciona Nueva versión.
+7. Confirma:
+
+   Ejecutar como: Yo
+   Quién tiene acceso: Cualquier persona
+
+8. Presiona Implementar.
+9. Conserva/copia la URL terminada en /exec.
+
+Abre esa URL /exec directamente en el navegador. Debe responder algo parecido:
+
+{"ok":true,"service":"Fantasmas Gmail Mailer","version":"10.0.0","secret_configured":true,"remaining":100}
+
+Si secret_configured aparece false, vuelve a Configuración del proyecto >
+Propiedades del script y agrega:
+
+WEBHOOK_SECRET = tu clave privada larga
+
+
+PASO 5 — VARIABLES DE CLOUDFLARE
+-----------------------------------------------------------------
+Worker fantasmas-checkout > Settings > Variables and Secrets.
+
+Como texto:
+GMAIL_WEB_APP_URL = URL de Apps Script terminada en /exec
+
+Como secreto:
+GMAIL_WEB_APP_SECRET = exactamente el mismo WEBHOOK_SECRET
+
+Verifica también:
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY (secreto)
+SITE_URL = https://fantasmas-biker-s-shop.pages.dev
+ALLOWED_ORIGIN = https://fantasmas-biker-s-shop.pages.dev
+
+Presiona Deploy después de guardar variables.
+
+
+PASO 6 — PRUEBA DESDE EL PANEL
+-----------------------------------------------------------------
+1. Entra a /admin.
+2. Abre Información.
+3. Confirma y guarda la URL del Worker.
+4. Pulsa “Comprobar conexión”.
+
+Debe indicar:
+Worker 10.0.0 conectado · Correo activo mediante gmail.
+
+5. En “Prueba real de correo” escribe tu Gmail.
+6. Pulsa “Enviar prueba”.
+
+Si Google rechaza el envío, el panel mostrará el motivo real en lugar de
+solamente decir que no funcionó.
+
+
+PASO 7 — CATÁLOGO DE 300+ PRODUCTOS
+-----------------------------------------------------------------
+- El panel muestra 25 productos por página.
+- Los pedidos muestran 30 por página.
+- La tienda muestra 24 productos y después “Mostrar más”.
+- El editor solo carga una muestra de 24 productos y no inicia el carrito.
+- Si intentas salir del editor con cambios pendientes, el navegador avisa.
+
+Para importar:
+1. Productos > Plantilla CSV.
+2. Usa un SKU diferente para cada producto, por ejemplo CASCO-001.
+3. Importar CSV.
+
+Si vuelves a importar el mismo SKU, el producto se actualiza; no se duplica.
+Las filas sin SKU siempre se consideran productos nuevos.
+
+
+PASO 8 — PRUEBA FINAL
+-----------------------------------------------------------------
+1. Crea un producto de prueba con 2 existencias.
+2. Agrégalo al carrito y registra un pedido por transferencia.
+3. Activa recibir actualizaciones por correo.
+4. Confirma que llegue el correo inicial.
+5. Consulta el pedido solamente con su folio.
+6. Desde el panel confirma el pago.
+7. Comprueba que las existencias bajen a 1.
+8. Cambia a Preparando, Listo y Entregado.
+9. Comprueba los correos de cada estado.
+10. Abre una dirección inexistente para probar 404.html.
+
+
+POR QUÉ NO SE MOVIÓ TODO A SUPABASE
+-----------------------------------------------------------------
+Supabase continúa administrando datos, autenticación, imágenes, productos,
+pedidos e inventario. Para mandar avisos de pedidos necesita de todos modos una
+función y un proveedor de correo. Conservar el Worker existente evita rehacer
+el checkout y el webhook; Gmail sigue siendo el remitente oficial.

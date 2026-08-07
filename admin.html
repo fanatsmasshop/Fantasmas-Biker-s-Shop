@@ -7,8 +7,8 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Panel administrativo | Fantasmas Biker's Shop</title>
   <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="admin.css?v=9">
-  <link rel="stylesheet" href="editor.css">
+  <link rel="stylesheet" href="admin.css?v=10">
+  <link rel="stylesheet" href="editor.css?v=10">
   <style>[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -149,6 +149,7 @@
         <div class="toolbar"><input id="orderSearch" type="search" placeholder="Buscar folio, cliente o teléfono..."><select id="orderFilter"><option value="all">Todos</option><option value="new">Nuevos y pendientes</option><option value="paid">Pagados</option><option value="processing">En preparación</option><option value="fulfilled">Entregados</option><option value="cancelled">Cancelados</option></select></div>
         <div class="orders-summary" id="ordersSummary"></div>
         <div class="admin-list" id="ordersList"></div>
+        <div class="catalog-pagination" id="ordersPagination" aria-live="polite"></div>
       </section>
 
       <section class="view" id="view-categories">
@@ -203,6 +204,17 @@
           <label class="wide">URL del Worker de cobros<input name="checkout_worker_url" placeholder="https://fantasmas-checkout.tu-cuenta.workers.dev"></label>
           <label>Mercado Pago<select name="mercadopago_enabled"><option value="true">Activado</option><option value="false">Desactivado</option></select></label>
           <label>Transferencias<select name="transfer_enabled"><option value="true">Activadas</option><option value="false">Desactivadas</option></select></label>
+          <div class="wide integration-check">
+            <div><b>Diagnóstico del sistema</b><small>Comprueba Worker, Gmail y versión publicada sin crear pedidos.</small></div>
+            <button class="secondary" id="checkWorkerButton" type="button">Comprobar conexión</button>
+            <p id="workerDiagnostics">Todavía no se ha realizado la prueba.</p>
+          </div>
+          <div class="wide integration-check email-test-box">
+            <div><b>Prueba real de correo</b><small>Envía un mensaje de prueba al correo indicado.</small></div>
+            <input id="testEmailAddress" type="email" placeholder="correo@ejemplo.com" aria-label="Correo de prueba">
+            <button class="secondary" id="sendTestEmailButton" type="button">Enviar prueba</button>
+            <p id="emailTestStatus"></p>
+          </div>
           <h2 class="form-section-title">Datos para transferencia</h2>
           <label>Banco<input name="bank_name" placeholder="Nombre del banco"></label>
           <label>Titular<input name="bank_holder" placeholder="Nombre del titular"></label>
@@ -221,6 +233,7 @@
       <input type="hidden" name="id"><input type="hidden" name="current_image_url"><input type="hidden" name="current_image_path">
       <div class="form-grid">
         <label class="wide">Nombre del producto<input name="name" required maxlength="120"></label>
+        <label>SKU / código interno<input name="sku" maxlength="60" placeholder="Ej. CASCO-001"></label>
         <label>Categoría<input name="category" list="categoryOptions" value="General" required maxlength="60"><datalist id="categoryOptions"></datalist></label>
         <label>Orden<input name="sort_order" type="number" value="0"></label>
         <label>Precio actual<input name="price" type="number" min="0" step="0.01"></label>
@@ -312,7 +325,7 @@
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="admin.js?v=9"></script>
-  <script src="editor.js"></script>
+  <script src="admin.js?v=10"></script>
+  <script src="editor.js?v=10"></script>
 </body>
 </html>

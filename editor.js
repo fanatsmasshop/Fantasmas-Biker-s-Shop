@@ -17,6 +17,7 @@
   let draggedKey = "";
   let customSchemaReady = false;
   let previewUpdateTimer = 0;
+  let editorDirty = false;
   const deletedSectionKeys = new Set();
   const pendingMediaRemovals = new Set();
   const fixedSections = new Set(["header", "footer"]);
@@ -132,6 +133,14 @@
     toast.className = `toast show${error ? " error" : ""}`;
     clearTimeout(notify.timer);
     notify.timer = setTimeout(() => toast.className = "toast", 3200);
+  }
+
+  function setEditorDirty(value) {
+    editorDirty = Boolean(value);
+    const button = $("#saveSectionsButton");
+    if (!button) return;
+    button.classList.toggle("has-unsaved", editorDirty);
+    button.textContent = editorDirty ? "Publicar cambios •" : "Publicar cambios";
   }
 
   function localDate(value) {
@@ -889,6 +898,7 @@
       pendingMediaRemovals.clear();
     }
     $("#sectionEditorStatus").textContent = "Cambios publicados";
+    setEditorDirty(false);
     notify("La página pública y sus secciones fueron actualizadas.");
   }
 
@@ -1023,6 +1033,15 @@
   });
 
   $("#sitePreview").addEventListener("load", preparePreview);
+  new MutationObserver(() => {
+    const message = $("#sectionEditorStatus")?.textContent || "";
+    if (/sin publicar|nuevo orden/i.test(message)) setEditorDirty(true);
+  }).observe($("#sectionEditorStatus"), { childList: true, characterData: true, subtree: true });
+  window.addEventListener("beforeunload", (event) => {
+    if (!editorDirty) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   $("#closeInspector").addEventListener("click", () => $("#sectionInspector").classList.remove("open"));
   $("#sectionInspectorForm").addEventListener("input", updateSectionFromInspector);
   $("#sectionInspectorForm").addEventListener("change", updateSectionFromInspector);

@@ -99,6 +99,16 @@
 
   async function loadProducts() {
     await sectionsReady;
+    if (builderPreview) {
+      const { data, error } = await client.from("shop_products").select("*").eq("active", true)
+        .order("featured", { ascending: false }).order("sort_order").order("created_at", { ascending: false }).limit(PRODUCTS_PER_BATCH);
+      if (error) return;
+      products = data || [];
+      window.FANTASMAS_PRODUCTS = products;
+      renderProductFilters(); renderProducts();
+      window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products }));
+      return;
+    }
     const allRows = [];
     let offset = 0;
     let total = null;
