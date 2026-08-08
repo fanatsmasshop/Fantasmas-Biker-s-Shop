@@ -1,4 +1,42 @@
-/* Vista previa V10.4: un solo desplazamiento, manejado por el lienzo. */
+/* Vista previa V10.6: un solo desplazamiento y sin exceso horizontal. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.admin-app,
+.main,
+.view,
+#view-editor,
+.builder-heading,
+.editor-help,
+.builder-toolbar,
+.site-builder {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.main {
+  width: calc(100% - 255px);
+}
+
+#view-editor {
+  overflow-x: clip;
+}
+
+.site-builder {
+  width: 100%;
+  grid-template-columns: minmax(190px, 230px) minmax(0, 1fr) minmax(230px, 260px);
+}
+
+.builder-structure,
+.builder-canvas,
+.builder-inspector {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .builder-canvas {
   align-items: flex-start;
   overflow: auto;
@@ -11,6 +49,22 @@
   height: 560px;
   min-height: 560px;
   overflow: hidden;
+}
+
+@media (max-width: 1250px) {
+  .site-builder {
+    grid-template-columns: minmax(190px, 210px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 800px) {
+  .main {
+    width: 100%;
+  }
+
+  .site-builder {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .builder-inspector textarea {

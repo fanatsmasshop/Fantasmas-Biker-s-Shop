@@ -1,0 +1,11 @@
+FANTASMAS BIKER'S SHOP — AJUSTE V10.6
+
+Corrige el exceso y desplazamiento horizontal del lado derecho del panel.
+
+Reemplaza en la raíz de GitHub:
+- admin.html
+- editor-preview-stable.css
+
+Después del despliegue de Cloudflare, abre /admin y presiona Ctrl + Shift + R.
+
+No modifica el contenido, las secciones, productos, rifas, pedidos ni Supabase.
