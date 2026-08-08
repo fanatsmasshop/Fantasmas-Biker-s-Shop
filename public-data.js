@@ -8,6 +8,8 @@
   let selectedCategory = "Todas";
   let visibleProductCount = 24;
   const PRODUCTS_PER_BATCH = 24;
+  const PRODUCT_FETCH_SIZE = 500;
+  let catalogSearchTimer = 0;
   let storeWhatsApp = "525610329215";
   let tickerTimer = null;
   let countdownTimer = null;
@@ -59,7 +61,7 @@
     const search = (document.querySelector("#catalogSearch")?.value || "").trim().toLowerCase();
     const filtered = products.filter((product) => {
       const matchCategory = selectedCategory === "Todas" || product.category === selectedCategory;
-      const matchSearch = !search || `${product.name} ${product.category} ${product.description}`.toLowerCase().includes(search);
+      const matchSearch = !search || `${product.sku || ""} ${product.name || ""} ${product.category || ""} ${product.description || ""}`.toLowerCase().includes(search);
       return matchCategory && matchSearch;
     });
     const visible = filtered.slice(0, visibleProductCount);
@@ -68,11 +70,11 @@
       const canBuy = product.price !== null && product.price !== undefined && product.online_sale !== false && hasStock;
       const stockNote = product.stock === null || product.stock === undefined ? "" : Number(product.stock) > 0 ? `${product.stock} disponible${Number(product.stock) === 1 ? "" : "s"}` : "Agotado";
       return `
-      <article class="producto-publico">
-        <div class="producto-imagen">
-          ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy">` : "<span>☠</span>"}
+      <article class="producto-publico" data-product-id="${escapeHtml(product.id)}">
+        <button class="producto-imagen" type="button" data-view-product-image="${escapeHtml(product.id)}" aria-label="Ver fotografía completa de ${escapeHtml(product.name)}" ${product.image_url ? "" : "disabled"}>
+          ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async">` : "<span>☠</span>"}
           ${product.featured ? "<b>DESTACADO</b>" : ""}
-        </div>
+        </button>
         <div class="producto-info">
           <small>${escapeHtml(product.category)}</small>
           <h3>${escapeHtml(product.name)}</h3>
@@ -99,10 +101,15 @@
 
   async function loadProducts() {
     await sectionsReady;
+    const target = document.querySelector("#productosDinamicos");
+    if (target) target.innerHTML = '<p class="catalog-empty">Cargando catálogo…</p>';
     if (builderPreview) {
       const { data, error } = await client.from("shop_products").select("*").eq("active", true)
         .order("featured", { ascending: false }).order("sort_order").order("created_at", { ascending: false }).limit(PRODUCTS_PER_BATCH);
-      if (error) return;
+      if (error) {
+        if (target) target.innerHTML = '<p class="catalog-empty">No se pudo cargar la muestra del catálogo.</p>';
+        return;
+      }
       products = data || [];
       window.FANTASMAS_PRODUCTS = products;
       renderProductFilters(); renderProducts();
@@ -116,19 +123,40 @@
       const { data, error, count } = await client.from("shop_products")
         .select("*", { count: request === 0 ? "exact" : undefined })
         .eq("active", true).order("featured", { ascending: false }).order("sort_order").order("created_at", { ascending: false }).order("id")
-        .range(offset, offset + 499);
-      if (error) return;
+        .range(offset, offset + PRODUCT_FETCH_SIZE - 1);
+      if (error) {
+        if (target) target.innerHTML = `<p class="catalog-empty">No se pudo cargar el catálogo. <button type="button" id="retryProducts">Reintentar</button></p>`;
+        return;
+      }
       if (request === 0 && Number.isFinite(count)) total = count;
       if (!data?.length) break;
       allRows.push(...data);
       offset += data.length;
       if (total !== null && offset >= total) break;
-      if (total === null && data.length < 500) break;
+      if (total === null && data.length < PRODUCT_FETCH_SIZE) break;
     }
     products = allRows;
     window.FANTASMAS_PRODUCTS = products;
     renderProductFilters(); renderProducts();
     window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products }));
+  }
+
+  function openProductImage(productId) {
+    if (builderPreview) return;
+    const product = products.find((item) => String(item.id) === String(productId));
+    const dialog = document.querySelector("#productImageDialog");
+    const image = document.querySelector("#productImageFull");
+    const title = document.querySelector("#productImageTitle");
+    if (!product?.image_url || !dialog || !image || !title) return;
+    image.src = product.image_url;
+    image.alt = product.name || "Producto";
+    title.textContent = product.name || "Producto";
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function closeProductImage() {
+    const dialog = document.querySelector("#productImageDialog");
+    if (dialog?.open) dialog.close();
   }
 
   async function loadCategories() {
@@ -274,12 +302,27 @@
     window.dispatchEvent(new CustomEvent("fantasmas:settings-ready"));
   }
 
-  document.querySelector("#catalogSearch")?.addEventListener("input", () => { visibleProductCount = PRODUCTS_PER_BATCH; renderProducts(); });
+  document.querySelector("#catalogSearch")?.addEventListener("input", () => {
+    clearTimeout(catalogSearchTimer);
+    catalogSearchTimer = setTimeout(() => { visibleProductCount = PRODUCTS_PER_BATCH; renderProducts(); }, 160);
+  });
   document.querySelector("#categoryFilters")?.addEventListener("click", (event) => { const button = event.target.closest("[data-public-category]"); if (!button) return; selectedCategory = button.dataset.publicCategory; visibleProductCount = PRODUCTS_PER_BATCH; renderProductFilters(); renderProducts(); });
   document.querySelector("#catalogLoadMore")?.addEventListener("click", (event) => {
     if (!event.target.closest("#loadMoreProducts")) return;
     visibleProductCount += PRODUCTS_PER_BATCH;
     renderProducts();
+  });
+  document.querySelector("#productosDinamicos")?.addEventListener("click", (event) => {
+    if (event.target.closest("#retryProducts")) {
+      loadProducts();
+      return;
+    }
+    const button = event.target.closest("[data-view-product-image]");
+    if (button) openProductImage(button.dataset.viewProductImage);
+  });
+  document.querySelector("#productImageClose")?.addEventListener("click", closeProductImage);
+  document.querySelector("#productImageDialog")?.addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeProductImage();
   });
 
   (async function initializePublicStore() {

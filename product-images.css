@@ -1,0 +1,154 @@
+/* Catálogo V12: fotografías completas, tarjetas estables y visor ampliado. */
+.producto-publico {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.producto-imagen {
+  width: 100%;
+  height: auto;
+  min-height: 230px;
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--linea);
+  background: radial-gradient(circle, #223850, #101217 68%);
+  color: white;
+  cursor: zoom-in;
+}
+
+.producto-imagen img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  transition: transform .25s ease;
+}
+
+.producto-imagen:hover img,
+.producto-imagen:focus-visible img {
+  transform: scale(1.035);
+}
+
+.producto-imagen:focus-visible {
+  outline: 3px solid var(--azul);
+  outline-offset: -3px;
+}
+
+.producto-imagen:disabled {
+  cursor: default;
+}
+
+.producto-info {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.producto-info h3,
+.producto-info p {
+  overflow-wrap: anywhere;
+}
+
+.producto-info .producto-precio {
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.product-stock-note {
+  line-height: 1.45;
+}
+
+.product-image-dialog {
+  width: min(940px, calc(100vw - 28px));
+  max-width: none;
+  max-height: calc(100dvh - 28px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #3b424e;
+  background: #0c0f14;
+  color: white;
+  box-shadow: 0 30px 100px #000c;
+}
+
+.product-image-dialog::backdrop {
+  background: #020307e8;
+  backdrop-filter: blur(7px);
+}
+
+.product-image-dialog header {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #2a3039;
+  background: #11151b;
+}
+
+.product-image-dialog header p {
+  margin: 0 0 4px;
+  color: var(--azul);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.product-image-dialog header h2 {
+  margin: 0;
+  font-size: clamp(18px, 3vw, 28px);
+}
+
+.product-image-dialog header button {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #3a404b;
+  background: #191d24;
+  color: white;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.product-image-stage {
+  height: min(74dvh, 760px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background:
+    linear-gradient(45deg, #151922 25%, transparent 25%),
+    linear-gradient(-45deg, #151922 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #151922 75%),
+    linear-gradient(-45deg, transparent 75%, #151922 75%), #0a0d12;
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+}
+
+.product-image-stage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 18px 28px #0009);
+}
+
+@media (max-width: 650px) {
+  .producto-imagen {
+    min-height: 260px;
+    aspect-ratio: 1 / 1;
+  }
+
+  .product-image-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .product-image-stage {
+    height: 68dvh;
+    padding: 10px;
+  }
+}

@@ -384,7 +384,63 @@ button {
 .list-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #0c0f14;
+}
+.product-management {
+  min-width: 245px;
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+.stock-stepper {
+  display: grid;
+  grid-template-columns: 34px minmax(42px, auto) 34px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #0b0e13;
+}
+.stock-stepper button {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: #1a1e25;
+  color: white;
+  font-size: 18px;
+}
+.stock-stepper button:hover:not(:disabled) {
+  background: var(--blue);
+  color: #041018;
+}
+.stock-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: .35;
+}
+.stock-stepper b {
+  padding: 0 9px;
+  color: white;
+  text-align: center;
+  font-size: 12px;
+}
+.unlimited-stock {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.badge.stock-ok {
+  border: 1px solid #28d17c66;
+  color: var(--success);
+}
+.badge.stock-low {
+  border: 1px solid #ffb93866;
+  color: #ffca69;
+}
+.badge.stock-out {
+  border: 1px solid #ff4d6266;
+  color: var(--danger);
 }
 .list-main h3 {
   margin: 0 0 7px;
@@ -773,6 +829,15 @@ dialog::backdrop {
   .list-actions {
     grid-column: 1/-1;
     justify-content: flex-end;
+  }
+  .product-management {
+    min-width: 0;
+    width: 100%;
+    grid-column: 1/-1;
+    justify-items: stretch;
+  }
+  .product-management .stock-stepper {
+    justify-self: end;
   }
   .form-grid,
   .settings-form {

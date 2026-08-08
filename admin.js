@@ -187,7 +187,10 @@
       const matchFilter = filter === "all" ||
         (filter === "active" && product.active) ||
         (filter === "inactive" && !product.active) ||
-        (filter === "featured" && product.featured);
+        (filter === "featured" && product.featured) ||
+        (filter === "low_stock" && product.stock !== null && product.stock !== undefined && Number(product.stock) > 0 && Number(product.stock) <= 5) ||
+        (filter === "out_of_stock" && Number(product.stock) === 0) ||
+        (filter === "unlimited" && (product.stock === null || product.stock === undefined));
       return matchSearch && matchFilter;
     });
 
@@ -196,12 +199,20 @@
     const start = (productPage - 1) * PRODUCTS_PER_PAGE;
     const pageRows = visible.slice(start, start + PRODUCTS_PER_PAGE);
 
-    $("#productsList").innerHTML = pageRows.length ? pageRows.map((product) => `
+    $("#productsList").innerHTML = pageRows.length ? pageRows.map((product) => {
+      const limitedStock = product.stock !== null && product.stock !== undefined;
+      const stock = limitedStock ? Math.max(0, Number(product.stock) || 0) : null;
+      const stockClass = stock === 0 ? "stock-out" : stock !== null && stock <= 5 ? "stock-low" : "stock-ok";
+      return `
       <article class="list-card">
-        <div class="list-image">${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="">` : "☠"}</div>
-        <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${product.sku ? `SKU ${escapeHtml(product.sku)} · ` : ""}${escapeHtml(product.category)} · Orden ${product.sort_order} · ${product.stock === null || product.stock === undefined ? "Existencias sin límite" : `${product.stock} disponibles`}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}<span class="badge ${product.online_sale === false ? "inactive" : "active"}">${product.online_sale === false ? "SIN CARRITO" : "VENTA ONLINE"}</span></div></div>
-        <div class="list-actions"><button data-edit-product="${product.id}">Editar</button><button data-toggle-product="${product.id}">${product.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-product="${product.id}">Eliminar</button></div>
-      </article>`).join("") : '<div class="empty">No hay productos que coincidan.</div>';
+        <div class="list-image">${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy">` : "☠"}</div>
+        <div class="list-main"><h3>${escapeHtml(product.name)} · ${money(product.price)}</h3><p>${product.sku ? `SKU ${escapeHtml(product.sku)} · ` : ""}${escapeHtml(product.category)} · Orden ${product.sort_order}</p><div class="badges"><span class="badge ${product.active ? "active" : "inactive"}">${product.active ? "VISIBLE" : "OCULTO"}</span>${product.featured ? '<span class="badge featured">DESTACADO</span>' : ""}<span class="badge ${product.online_sale === false ? "inactive" : "active"}">${product.online_sale === false ? "SIN CARRITO" : "VENTA ONLINE"}</span><span class="badge ${stockClass}">${limitedStock ? `${stock} EN EXISTENCIA` : "SIN LÍMITE"}</span></div></div>
+        <div class="product-management">
+          ${limitedStock ? `<div class="stock-stepper" aria-label="Ajustar existencias"><button type="button" data-stock-delta="-1" data-stock-product="${product.id}" ${stock === 0 ? "disabled" : ""}>−</button><b>${stock}</b><button type="button" data-stock-delta="1" data-stock-product="${product.id}">＋</button></div>` : '<span class="unlimited-stock">∞ Inventario libre</span>'}
+          <div class="list-actions"><button data-edit-product="${product.id}">Editar</button><button data-toggle-product="${product.id}">${product.active ? "Ocultar" : "Mostrar"}</button><button class="delete" data-delete-product="${product.id}">Eliminar</button></div>
+        </div>
+      </article>`;
+    }).join("") : '<div class="empty">No hay productos que coincidan.</div>';
     $("#productsPagination").innerHTML = visible.length ? `
       <span>Mostrando ${start + 1}–${Math.min(start + PRODUCTS_PER_PAGE, visible.length)} de <b>${visible.length}</b></span>
       <div><button type="button" data-product-page="prev" ${productPage === 1 ? "disabled" : ""}>← Anterior</button><b>Página ${productPage} de ${totalPages}</b><button type="button" data-product-page="next" ${productPage === totalPages ? "disabled" : ""}>Siguiente →</button></div>` : "";
@@ -249,7 +260,7 @@
     const headers = rows.shift().map((value) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "_"));
     const read = (row, names) => {
       const index = names.map((name) => headers.indexOf(name)).find((position) => position >= 0);
-      return index === undefined ? "" : row[index];
+      return index === undefined ? "" : String(row[index] ?? "");
     };
     const imported = rows.map((row, index) => {
       const name = read(row, ["nombre", "name"]).trim();
@@ -261,7 +272,7 @@
         description: read(row, ["descripcion", "description"]).trim(),
         price: csvNumber(read(row, ["precio", "price"])),
         previous_price: csvNumber(read(row, ["precio_anterior", "previous_price"])),
-        stock: csvNumber(read(row, ["existencias", "stock"])),
+        stock: (() => { const value = csvNumber(read(row, ["existencias", "stock"])); return value === null ? null : Math.max(0, Math.trunc(value)); })(),
         sort_order: csvNumber(read(row, ["orden", "sort_order"])) || 0,
         active: csvBoolean(read(row, ["visible", "activo", "active"]), true),
         featured: csvBoolean(read(row, ["destacado", "featured"]), false),
@@ -273,7 +284,7 @@
     if (imported.length > 1000) throw new Error("Importa máximo 1,000 productos por archivo.");
     if (!confirm(`Se procesarán ${imported.length} productos. Los SKU existentes se actualizarán y los nuevos se agregarán. ¿Continuar?`)) return null;
     const { data, error } = await client.rpc("import_shop_products", { p_products: imported });
-    if (error) throw new Error(`${error.message}. Ejecuta database_repair_v10.sql si aún no instalaste la actualización.`);
+    if (error) throw new Error(`${error.message}. Ejecuta database_catalog_inventory_v12.sql en Supabase.`);
     return data || { total: imported.length, inserted: imported.length, updated: 0 };
   }
 
@@ -565,6 +576,24 @@
       const item = products.find((p) => p.id === button.dataset.toggleProduct);
       const { error } = await client.from("shop_products").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id);
       if (!error) { await loadProducts(); updateStats(); }
+    }
+    if (button.matches("[data-stock-delta]")) {
+      const item = products.find((product) => product.id === button.dataset.stockProduct);
+      if (!item || item.stock === null || item.stock === undefined) return;
+      button.disabled = true;
+      try {
+        const { data, error } = await client.rpc("adjust_shop_product_stock", {
+          p_product_id: item.id,
+          p_delta: Number(button.dataset.stockDelta)
+        });
+        if (error) throw error;
+        item.stock = Number(data?.stock ?? item.stock);
+        renderProducts();
+        updateStats();
+      } catch (error) {
+        toast(`${error.message}. Ejecuta database_catalog_inventory_v12.sql.`, true);
+        button.disabled = false;
+      }
     }
     if (button.matches("[data-toggle-promotion]")) {
       const item = promotions.find((p) => p.id === button.dataset.togglePromotion);

@@ -1,0 +1,62 @@
+FANTASMAS BIKER'S SHOP — CATÁLOGO E INVENTARIO V12
+====================================================
+
+Esta actualización no modifica Gmail, correos, pedidos, rifas, ruleta,
+Mercado Pago, el Worker ni supabase-config.js.
+
+PASO 1 — SUPABASE
+-----------------
+1. Abre Supabase > SQL Editor.
+2. Crea una consulta nueva.
+3. Copia y ejecuta completo:
+
+   database_catalog_inventory_v12.sql
+
+El archivo conserva todos los productos y agrega:
+- SKU opcional y único.
+- Existencias limitadas o sin límite.
+- Venta en línea por producto.
+- Importación CSV de hasta 1,000 filas.
+- Ajuste rápido y protegido del inventario.
+- Índices para acelerar un catálogo grande.
+
+PASO 2 — GITHUB / CLOUDFLARE PAGES
+----------------------------------
+Sube a la raíz del repositorio y reemplaza:
+
+- admin.html
+- admin.js
+- admin.css
+- index.html
+- public-data.js
+
+Agrega también a la raíz:
+
+- product-images.css
+- database_catalog_inventory_v12.sql
+
+El archivo SQL se conserva en GitHub como respaldo, pero se ejecuta manualmente
+en Supabase. No subas ni reemplaces supabase-config.js.
+
+PASO 3 — ACTUALIZAR
+-------------------
+Espera el despliegue de Cloudflare Pages. Después abre la página y /admin con
+Ctrl + Shift + R o usa una ventana de incógnito.
+
+PRUEBA RÁPIDA
+-------------
+1. Panel > Productos.
+2. Crea un producto con 3 existencias y fotografía.
+3. Usa los botones − y + desde la lista.
+4. Filtra por “Pocas existencias”.
+5. Abre la tienda y pulsa la fotografía: debe aparecer completa y ampliada.
+6. Usa Plantilla CSV e importa algunos productos de prueba con SKU diferentes.
+
+FUNCIONAMIENTO CON MÁS DE 300 PRODUCTOS
+---------------------------------------
+- El panel descarga todas las páginas de Supabase y muestra 25 por pantalla.
+- La tienda carga todo el catálogo, pero dibuja solo 24 inicialmente.
+- “Mostrar más” agrega otros 24 sin saturar la pantalla.
+- El buscador revisa nombre, SKU, categoría y descripción.
+- Las imágenes usan carga diferida y no se recortan.
+- El editor conserva una muestra pequeña para no volver a trabarse.

@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Panel administrativo | Fantasmas Biker's Shop</title>
   <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="admin.css?v=10">
+  <link rel="stylesheet" href="admin.css?v=12">
   <link rel="stylesheet" href="editor.css?v=10.5">
   <link rel="stylesheet" href="editor-preview-stable.css?v=10.6">
   <style>[hidden]{display:none!important}</style>
@@ -140,7 +140,7 @@
       <section class="view" id="view-products">
         <div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Productos</h1></div><div class="head-actions"><button class="secondary" id="downloadProductsTemplate" type="button">Plantilla CSV</button><button class="secondary" id="importProductsButton" type="button">Importar CSV</button><button class="primary" id="newProductButton" type="button">+ Nuevo producto</button></div></div>
         <input id="productsCsvFile" type="file" accept=".csv,text/csv" hidden>
-        <div class="toolbar"><input id="productSearch" type="search" placeholder="Buscar producto..."><select id="productFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Ocultos</option><option value="featured">Destacados</option></select></div>
+        <div class="toolbar"><input id="productSearch" type="search" placeholder="Buscar por nombre, SKU o categoría..."><select id="productFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Ocultos</option><option value="featured">Destacados</option><option value="low_stock">Pocas existencias (1–5)</option><option value="out_of_stock">Agotados</option><option value="unlimited">Sin límite</option></select></div>
         <div class="admin-list" id="productsList"></div>
         <div class="catalog-pagination" id="productsPagination" aria-live="polite"></div>
       </section>
@@ -329,7 +329,7 @@
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="admin.js?v=10"></script>
+  <script src="admin.js?v=12"></script>
   <script src="editor.js?v=11.5"></script>
 </body>
 </html>
