@@ -1,13 +1,14 @@
 // FANTASMAS BIKER'S SHOP — WORKER SEGURO PARA MERCADO PAGO
 // Este archivo se pega en un Worker de Cloudflare. NO va en GitHub Pages.
-// Secrets: MP_ACCESS_TOKEN (opcional), SUPABASE_SERVICE_ROLE_KEY,
-//          GMAIL_WEB_APP_SECRET (opcional), RESEND_API_KEY (opcional)
+// Secrets: MP_ACCESS_TOKEN (opcional), MP_WEBHOOK_SECRET (recomendado/producción),
+//          SUPABASE_SERVICE_ROLE_KEY, GMAIL_WEB_APP_SECRET (opcional),
+//          RESEND_API_KEY (opcional)
 // Variables: SUPABASE_URL, SITE_URL, ALLOWED_ORIGIN,
 //            GMAIL_WEB_APP_URL (opcional), EMAIL_FROM (opcional para Resend)
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const WORKER_VERSION = "11.0.0";
+const WORKER_VERSION = "13.0.0";
 const RATE_BUCKETS = new Map();
 
 function enforceRateLimit(request, scope, limit, windowMs) {
@@ -64,6 +65,50 @@ async function readJson(request) {
     return await request.json();
   } catch (_) {
     throw new Error("Datos de pedido inválidos");
+  }
+}
+
+function hexToBytes(hex) {
+  if (!/^[0-9a-f]+$/i.test(hex) || hex.length % 2) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
+async function verifyMercadoPagoWebhookSignature(request, env, url) {
+  if (!env.MP_WEBHOOK_SECRET) {
+    const error = new Error("Falta configurar MP_WEBHOOK_SECRET en el Worker");
+    error.status = 503;
+    throw error;
+  }
+  const signatureHeader = String(request.headers.get("x-signature") || "").trim();
+  const requestId = String(request.headers.get("x-request-id") || "").trim();
+  const dataId = String(url.searchParams.get("data.id") || url.searchParams.get("data_id") || "").trim().toLowerCase();
+  const parts = Object.fromEntries(signatureHeader.split(",").map((part) => {
+    const index = part.indexOf("=");
+    return index > 0 ? [part.slice(0, index).trim().toLowerCase(), part.slice(index + 1).trim()] : ["", ""];
+  }).filter(([key, value]) => key && value));
+  const ts = parts.ts || "";
+  const received = hexToBytes(parts.v1 || "");
+  if (!ts || !received) {
+    const error = new Error("Firma de Webhook de Mercado Pago inválida");
+    error.status = 401;
+    throw error;
+  }
+  const manifest = `${dataId ? `id:${dataId};` : ""}${requestId ? `request-id:${requestId};` : ""}ts:${ts};`;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(String(env.MP_WEBHOOK_SECRET)),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  );
+  const valid = await crypto.subtle.verify("HMAC", key, received, encoder.encode(manifest));
+  if (!valid) {
+    const error = new Error("Firma de Webhook de Mercado Pago no válida");
+    error.status = 401;
+    throw error;
   }
 }
 
@@ -270,12 +315,36 @@ async function deliverEmail(env, message) {
   return { sent: false, provider: null, remaining: null, attempts };
 }
 
+function paymentStatusInfo(order) {
+  const status = String(order.mp_payment_status || "").toLowerCase();
+  const labels = {
+    approved: ["Pago aprobado", "Mercado Pago confirmó el cobro."],
+    pending: ["Pago pendiente", "Mercado Pago todavía está procesando el pago."],
+    in_process: ["Pago en proceso", "Mercado Pago todavía está validando el pago."],
+    rejected: ["Pago rechazado", "Mercado Pago rechazó el cobro. Puedes intentar nuevamente con otro medio de pago."],
+    cancelled: ["Pago cancelado", "El intento de pago fue cancelado y no se confirmó ningún cobro."],
+    refunded: ["Pago reembolsado", "Mercado Pago reporta que este pago fue reembolsado."],
+    charged_back: ["Pago con contracargo", "Mercado Pago reporta un contracargo sobre este pago."]
+  };
+  const value = labels[status];
+  return { status, label: value?.[0] || "", message: value?.[1] || "" };
+}
+
 function publicOrder(order) {
+  const payment = paymentStatusInfo(order);
+  let statusLabel = ORDER_STATUS[order.status]?.label || order.status;
+  let statusMessage = ORDER_STATUS[order.status]?.message || "Consulta la información actual de tu pedido.";
+  if (order.payment_method === "mercadopago" && payment.status && order.status !== "paid" && !["processing", "ready", "fulfilled"].includes(order.status)) {
+    statusLabel = payment.label || statusLabel;
+    statusMessage = payment.message || statusMessage;
+  }
   return {
     order_number: order.order_number,
     status: order.status,
-    status_label: ORDER_STATUS[order.status]?.label || order.status,
-    status_message: ORDER_STATUS[order.status]?.message || "Consulta la información actual de tu pedido.",
+    status_label: statusLabel,
+    status_message: statusMessage,
+    payment_status: payment.status,
+    payment_status_label: payment.label,
     items: Array.isArray(order.items) ? order.items.map((item) => ({ name: item.name, quantity: item.quantity, unit_price: item.unit_price })) : [],
     subtotal: order.subtotal,
     shipping_cost: order.shipping_cost,
@@ -349,10 +418,12 @@ async function createMercadoPagoPreference(request, env, canonical, order) {
     payer,
     external_reference: order.id,
     statement_descriptor: "FANTASMAS BIKERS",
+    // El regreso del cliente NO decide si el pedido está pagado.
+    // Siempre vuelve a la pantalla del folio, que consulta el estado real al Worker.
     back_urls: {
-      success: `${siteUrl}/?payment=success&order=${order.id}`,
-      pending: `${siteUrl}/?payment=pending&order=${order.id}`,
-      failure: `${siteUrl}/?payment=failure&order=${order.id}`
+      success: `${siteUrl}/pedido.html?folio=${encodeURIComponent(order.order_number)}&retorno_mp=success`,
+      pending: `${siteUrl}/pedido.html?folio=${encodeURIComponent(order.order_number)}&retorno_mp=pending`,
+      failure: `${siteUrl}/pedido.html?folio=${encodeURIComponent(order.order_number)}&retorno_mp=failure`
     },
     auto_return: "approved",
     expires: true,
@@ -434,13 +505,18 @@ async function handleAdminOrderStatus(request, env) {
   const nextStatus = String(payload.status || "");
   if (!UUID_PATTERN.test(orderId)) throw new Error("Pedido inválido");
   if (!["paid", "processing", "ready", "fulfilled", "cancelled"].includes(nextStatus)) throw new Error("Estado inválido");
+  const currentRows = await supabaseRequest(env, `shop_orders?select=id,status,stock_applied,payment_method&id=eq.${orderId}&limit=1`);
+  const currentOrder = currentRows?.[0];
+  if (!currentOrder) throw new Error("Pedido no encontrado");
   if (nextStatus === "paid") {
     await supabaseRequest(env, "rpc/confirm_shop_order_payment", {
       method: "POST",
       body: JSON.stringify({ p_order_id: orderId, p_payment_id: `manual-${Date.now()}`, p_payment_status: "approved" })
     });
   } else {
-    if (nextStatus === "cancelled") await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
+    if (nextStatus === "cancelled" && !currentOrder.stock_applied) {
+      await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
+    }
     await patchOrder(env, orderId, { status: nextStatus });
   }
   const rows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);
@@ -461,6 +537,7 @@ async function mercadoPagoPayment(env, paymentId) {
 
 async function handleWebhook(request, env) {
   const url = new URL(request.url);
+  await verifyMercadoPagoWebhookSignature(request, env, url);
   let body = {};
   try { body = await request.json(); } catch (_) { body = {}; }
   const type = body.type || url.searchParams.get("type") || "";
@@ -471,7 +548,7 @@ async function handleWebhook(request, env) {
   const orderId = String(payment.external_reference || "");
   if (!UUID_PATTERN.test(orderId)) return response(request, env, { ok: true, ignored: true });
 
-  const orders = await supabaseRequest(env, `shop_orders?select=id,total&id=eq.${orderId}&limit=1`);
+  const orders = await supabaseRequest(env, `shop_orders?select=id,total,status,stock_applied&id=eq.${orderId}&limit=1`);
   const order = orders?.[0];
   if (!order) return response(request, env, { ok: true, ignored: true });
   if (Math.abs(Number(order.total) - Number(payment.transaction_amount)) > 0.01 || payment.currency_id !== "MXN") {
@@ -483,13 +560,20 @@ async function handleWebhook(request, env) {
       method: "POST",
       body: JSON.stringify({ p_order_id: orderId, p_payment_id: String(payment.id), p_payment_status: payment.status })
     });
-    const updatedRows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);
-    if (updatedRows?.[0]) await sendOrderEmail(env, updatedRows[0]);
   } else {
-    const status = ["rejected", "cancelled", "refunded", "charged_back"].includes(payment.status) ? "payment_failed" : "pending_payment";
-    await patchOrder(env, orderId, { status, mp_payment_id: String(payment.id), mp_payment_status: payment.status });
-    if (status === "payment_failed") await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
+    // Rechazado = no pagado. Cancelado = pedido cancelado.
+    // Reembolsos/contracargos se conservan como incidencia de pago y NO liberan
+    // automáticamente inventario/números que ya hayan sido confirmados.
+    const nextStatus = payment.status === "cancelled" ? "cancelled"
+      : ["rejected", "refunded", "charged_back"].includes(payment.status) ? "payment_failed"
+      : "pending_payment";
+    await patchOrder(env, orderId, { status: nextStatus, mp_payment_id: String(payment.id), mp_payment_status: payment.status });
+    if (!order.stock_applied && ["rejected", "cancelled"].includes(payment.status)) {
+      await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
+    }
   }
+  const updatedRows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);
+  if (updatedRows?.[0]) await sendOrderEmail(env, updatedRows[0]);
   return response(request, env, { ok: true });
 }
 
@@ -506,7 +590,7 @@ export default {
       assertConfigured(env);
       if (request.method === "GET" && url.pathname === "/health") {
         const emailProvider = env.GMAIL_WEB_APP_URL && env.GMAIL_WEB_APP_SECRET ? "gmail" : env.RESEND_API_KEY && env.EMAIL_FROM ? "resend" : null;
-        return response(request, env, { ok: true, version: WORKER_VERSION, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), email_notifications: Boolean(emailProvider), email_provider: emailProvider });
+        return response(request, env, { ok: true, version: WORKER_VERSION, mercado_pago: Boolean(env.MP_ACCESS_TOKEN), webhook_signature: Boolean(env.MP_WEBHOOK_SECRET), email_notifications: Boolean(emailProvider), email_provider: emailProvider });
       }
       if (request.method === "POST" && url.pathname === "/checkout") { enforceRateLimit(request, "checkout", 12, 300000); return await handleCheckout(request, env); }
       if (request.method === "POST" && url.pathname === "/order") { enforceRateLimit(request, "order", 12, 300000); return await handleManualOrder(request, env); }

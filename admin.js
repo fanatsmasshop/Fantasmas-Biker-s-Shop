@@ -308,8 +308,20 @@
 
   const orderStatusLabels = {
     pending: "NUEVO", pending_payment: "ESPERANDO PAGO", transfer_pending: "ESPERANDO TRANSFERENCIA", quote_requested: "COTIZACIÓN",
-    paid: "PAGADO", processing: "EN PREPARACIÓN", ready: "LISTO", fulfilled: "ENTREGADO", cancelled: "CANCELADO", payment_failed: "PAGO FALLIDO"
+    paid: "PAGADO", processing: "EN PREPARACIÓN", ready: "LISTO", fulfilled: "ENTREGADO", cancelled: "CANCELADO", payment_failed: "NO PAGADO"
   };
+
+  function visibleOrderStatus(order) {
+    const mp = String(order.mp_payment_status || "").toLowerCase();
+    if (order.payment_method === "mercadopago") {
+      if (mp === "rejected") return "PAGO RECHAZADO";
+      if (mp === "cancelled") return "PAGO CANCELADO";
+      if (mp === "refunded") return "REEMBOLSADO";
+      if (mp === "charged_back") return "CONTRACARGO";
+      if (["pending", "in_process"].includes(mp)) return "PAGO PENDIENTE";
+    }
+    return orderStatusLabels[order.status] || order.status;
+  }
 
   function orderMatchesFilter(order, filter) {
     if (filter === "all") return true;
@@ -343,14 +355,15 @@
       const delivery = order.delivery_method === "pickup" ? "Recoge en tienda" : `Envío por cotizar${order.delivery_address ? ` · ${order.delivery_address}` : ""}`;
       const message = encodeURIComponent(`Hola ${order.customer_name}, te contactamos de Fantasmas Biker's Shop por tu pedido ${order.order_number}.`);
       return `<article class="order-card">
-        <div class="order-card-head"><div><small>${new Date(order.created_at).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small><h3>${escapeHtml(order.order_number)}</h3></div><span class="order-status status-${escapeHtml(order.status)}">${escapeHtml(orderStatusLabels[order.status] || order.status)}</span></div>
+        <div class="order-card-head"><div><small>${new Date(order.created_at).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small><h3>${escapeHtml(order.order_number)}</h3></div><span class="order-status status-${escapeHtml(order.status)}">${escapeHtml(visibleOrderStatus(order))}</span></div>
         <div class="order-customer"><b>${escapeHtml(order.customer_name)}</b><span>${escapeHtml(order.customer_phone)}${order.customer_email ? ` · ${escapeHtml(order.customer_email)}` : ""}</span><small>${escapeHtml(delivery)}</small></div>
         <div class="order-items">${items.map((item) => `<p><span>${Number(item.quantity) || 1} × ${escapeHtml(item.name)}</span><b>${money(Number(item.unit_price || 0) * Number(item.quantity || 1))}</b></p>`).join("")}</div>
         ${order.customer_notes ? `<p class="order-notes"><b>Notas:</b> ${escapeHtml(order.customer_notes)}</p>` : ""}
         <div class="order-total"><span>${escapeHtml(payment)}${order.mp_payment_status ? ` · ${escapeHtml(order.mp_payment_status)}` : ""}</span><strong>${money(order.total)}</strong></div>
         <div class="order-actions">
           <a href="https://wa.me/52${escapeHtml(String(order.customer_phone).replace(/\D/g, "").replace(/^52(?=\d{10}$)/, ""))}?text=${message}" target="_blank">WhatsApp</a>
-          ${!["paid","processing","ready","fulfilled","cancelled"].includes(order.status) ? `<button data-order-paid="${order.id}">Confirmar pago</button>` : ""}
+          ${order.payment_method !== "mercadopago" && !["paid","processing","ready","fulfilled","cancelled"].includes(order.status) ? `<button data-order-paid="${order.id}">Confirmar pago</button>` : ""}
+          ${order.payment_method === "mercadopago" && !["paid","processing","ready","fulfilled"].includes(order.status) ? `<span class="payment-auto-note">Pago verificado automáticamente</span>` : ""}
           ${order.status === "paid" ? `<button data-order-status="processing" data-order-id="${order.id}">Preparar</button>` : ""}
           ${order.status === "processing" ? `<button data-order-status="ready" data-order-id="${order.id}">Marcar listo</button>` : ""}
           ${order.status === "ready" ? `<button data-order-status="fulfilled" data-order-id="${order.id}">Entregado</button>` : ""}
@@ -534,8 +547,9 @@
       const data = await result.json().catch(() => ({}));
       if (!result.ok || !data.ok) throw new Error(data.error || `Error ${result.status}`);
       const email = data.email_notifications ? `Correo activo mediante ${data.email_provider}` : "Correo sin configurar";
-      status.textContent = `Worker ${data.version || "anterior"} conectado · ${email} · Mercado Pago ${data.mercado_pago ? "activo" : "inactivo"}.`;
-      status.className = data.email_notifications ? "diagnostic-ok" : "diagnostic-warning";
+      const webhook = data.webhook_signature ? "Webhook firmado" : "FALTA firma Webhook";
+      status.textContent = `Worker ${data.version || "anterior"} conectado · ${email} · Mercado Pago ${data.mercado_pago ? "activo" : "inactivo"} · ${webhook}.`;
+      status.className = data.email_notifications && (!data.mercado_pago || data.webhook_signature) ? "diagnostic-ok" : "diagnostic-warning";
     } catch (error) {
       status.textContent = `No se pudo conectar: ${error.message}`;
       status.className = "diagnostic-error";

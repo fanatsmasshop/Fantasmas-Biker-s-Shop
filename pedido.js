@@ -27,6 +27,7 @@
     fulfilled: 4,
   };
   let workerUrl = "";
+  let returnPolls = 0;
 
   async function loadWorkerUrl() {
     const config = window.FANTASMAS_SUPABASE || {};
@@ -64,6 +65,30 @@
       .join("");
   }
 
+  function paymentMethodLabel(order) {
+    if (order.payment_method === "transfer") return "Transferencia";
+    if (order.payment_method !== "mercadopago") return "Cotización";
+    return order.payment_status_label ? `Mercado Pago · ${order.payment_status_label}` : "Mercado Pago";
+  }
+
+  function updateReturnCard(order) {
+    const returnState = new URLSearchParams(location.search).get("retorno_mp");
+    const card = $("#paymentReturnCard");
+    if (!returnState || !card) return;
+    card.hidden = false;
+    card.classList.remove("success", "failure");
+    if (order.status === "paid" || ["processing", "ready", "fulfilled"].includes(order.status)) {
+      card.classList.add("success");
+      $("#paymentReturnHeading").textContent = "Pago confirmado por el sistema";
+      try { localStorage.setItem("fantasmas_shop_cart_v1", "[]"); } catch (_) {}
+    } else if (order.status === "payment_failed" || order.status === "cancelled") {
+      card.classList.add("failure");
+      $("#paymentReturnHeading").textContent = order.status_label;
+    } else {
+      $("#paymentReturnHeading").textContent = "Pago todavía pendiente de confirmación";
+    }
+  }
+
   function renderOrder(order) {
     $("#resultOrderNumber").textContent = order.order_number;
     $("#resultStatus").textContent = order.status_label;
@@ -79,16 +104,12 @@
       order.delivery_method === "pickup"
         ? "Recoger en tienda"
         : "Envío por cotizar";
-    $("#resultPayment").textContent =
-      order.payment_method === "transfer"
-        ? "Transferencia"
-        : order.payment_method === "mercadopago"
-          ? "Mercado Pago"
-          : "Cotización";
+    $("#resultPayment").textContent = paymentMethodLabel(order);
     $("#resultTotal").textContent = money(order.total);
     $("#resultUpdated").textContent =
       `Última actualización: ${new Date(order.updated_at).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" })}`;
     renderTimeline(order);
+    updateReturnCard(order);
     $("#trackingResult").hidden = false;
     $("#trackingResult").scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -111,6 +132,11 @@
         throw new Error(data.error || "No se pudo consultar el pedido");
       message.textContent = "";
       renderOrder(data.order);
+      const returnedFromMp = new URLSearchParams(location.search).has("retorno_mp");
+      if (returnedFromMp && data.order.payment_method === "mercadopago" && data.order.status === "pending_payment" && returnPolls < 4) {
+        returnPolls += 1;
+        setTimeout(() => lookupOrder(data.order.order_number), 2500);
+      }
     } catch (error) {
       message.textContent = error.message;
     } finally {

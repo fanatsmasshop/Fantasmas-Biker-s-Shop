@@ -77,6 +77,33 @@ body {
   font-size: 16px;
   line-height: 1.7;
 }
+.payment-return-card {
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  border: 1px solid #28a8ff55;
+  border-left: 5px solid var(--blue);
+  background: linear-gradient(135deg, #101720, #101216);
+}
+.payment-return-card small {
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+.payment-return-card h2 {
+  margin: 7px 0 8px;
+  font-size: 22px;
+}
+.payment-return-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.payment-return-card b { color: var(--text); }
+.payment-return-card.success { border-left-color: var(--green); }
+.payment-return-card.failure { border-left-color: var(--red); }
+
 .lookup-card {
   padding: 28px;
   background: var(--panel);

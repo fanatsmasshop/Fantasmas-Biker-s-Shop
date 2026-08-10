@@ -1,0 +1,92 @@
+============================================================
+FANTASMAS BIKER'S SHOP — PAGOS REALES V13
+Mercado Pago + estados reales de pedido
+============================================================
+
+OBJETIVO
+- Un regreso desde Mercado Pago NUNCA marca por sí solo un pedido como pagado.
+- El estado PAGADO solo llega por confirmación real del Worker/Webhook.
+- El cliente vuelve a pedido.html con su folio y ve el estado guardado en el sistema.
+- Se distinguen visualmente: pendiente, aprobado, rechazado, cancelado, reembolsado y contracargo.
+- Los pagos Mercado Pago ya no muestran el botón administrativo "Confirmar pago"; se verifican automáticamente.
+- Transferencias conservan la confirmación manual desde el panel.
+
+ARCHIVOS PARA GITHUB / CLOUDFLARE PAGES
+Sube y reemplaza únicamente:
+1. pedido.html
+2. pedido.js
+3. pedido.css
+4. admin.js
+5. admin.css
+6. shop-cart.js
+
+ARCHIVO PARA CLOUDFLARE WORKER
+7. cloudflare-mercadopago-worker.js
+
+IMPORTANTE: el Worker NO lleva credenciales escritas dentro del archivo.
+Reemplaza el código del Worker actual por este archivo y vuelve a desplegarlo.
+
+SECRETS / VARIABLES DEL WORKER
+Conserva los que ya tenías y, para Mercado Pago, configura:
+
+Secret:
+- MP_ACCESS_TOKEN = Access Token de PRODUCCIÓN de Mercado Pago
+- MP_WEBHOOK_SECRET = Firma secreta de Webhooks de tu integración de Mercado Pago
+
+Ya existentes:
+- SUPABASE_SERVICE_ROLE_KEY
+- GMAIL_WEB_APP_SECRET (si usas Gmail)
+- RESEND_API_KEY (solo si usas Resend)
+
+Variables:
+- SUPABASE_URL
+- SITE_URL
+- ALLOWED_ORIGIN
+- GMAIL_WEB_APP_URL (si usas Gmail)
+- EMAIL_FROM (solo si usas Resend)
+
+CONFIGURAR WEBHOOK EN MERCADO PAGO
+1. En Mercado Pago Developers abre tu aplicación.
+2. Ve a Webhooks / Configurar notificaciones.
+3. En producción usa la URL:
+   https://TU-WORKER.workers.dev/webhook
+4. Activa el evento de Pagos (payment).
+5. Guarda.
+6. Copia/revela la firma secreta generada.
+7. En Cloudflare Worker > Settings > Variables and Secrets crea:
+   MP_WEBHOOK_SECRET
+8. Pega ahí la firma como SECRET y despliega de nuevo.
+
+COMPROBACIÓN DESDE EL PANEL
+En Fantasmas > Administrador > diagnóstico del Worker debe indicar algo como:
+- Mercado Pago activo
+- Webhook firmado
+
+FLUJO FINAL
+1. Cliente confirma carrito.
+2. Se crea pedido: ESPERANDO PAGO.
+3. Se abre Mercado Pago.
+4. Si el cliente vuelve, entra directamente al seguimiento del folio.
+5. pedido.html pregunta al Worker por el estado REAL.
+6. El Webhook recibe la notificación, valida la firma y consulta el pago directamente a Mercado Pago.
+7. Solo si Mercado Pago devuelve status=approved:
+   - pedido = PAGADO
+   - se descuenta inventario
+   - números de rifa pasan a pagados
+   - se envía correo si estaba activado
+
+ESTADOS
+- pending / in_process -> PAGO PENDIENTE
+- approved -> PAGADO
+- rejected -> PAGO RECHAZADO / NO PAGADO
+- cancelled -> CANCELADO
+- refunded -> REEMBOLSADO
+- charged_back -> CONTRACARGO
+
+SEGURIDAD DE RIFAS
+- Un pago rechazado o cancelado puede liberar una reserva que nunca fue pagada.
+- Un reembolso/contracargo posterior NO libera automáticamente números ya pagados.
+- Cancelar manualmente un pedido ya pagado tampoco libera automáticamente números pagados.
+
+NO HACE FALTA EJECUTAR SQL NUEVO.
+============================================================

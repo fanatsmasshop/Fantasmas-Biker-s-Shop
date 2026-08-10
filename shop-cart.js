@@ -341,20 +341,15 @@
     if (!state) return;
     const notice = $("#paymentReturnNotice");
     const values = {
-      success: ["Pago recibido", "Mercado Pago reportó la operación como aprobada. El pedido se está verificando.", "success"],
-      pending: ["Pago pendiente", "Mercado Pago todavía está procesando la operación.", ""],
-      failure: ["Pago no completado", "No se realizó el cobro. Puedes volver a intentar desde el carrito.", "failure"]
+      success: ["Regreso de Mercado Pago", "La pantalla de regreso no confirma por sí sola el cobro. Consulta tu folio para ver el estado real del pedido.", ""],
+      pending: ["Pago en verificación", "Consulta tu folio: el estado definitivo se obtiene desde nuestro sistema.", ""],
+      failure: ["Pago no completado", "Consulta tu folio para confirmar el estado real o intentar otra forma de pago.", "failure"]
     };
     const value = values[state] || values.pending;
     $("#paymentReturnTitle").textContent = value[0];
     $("#paymentReturnText").textContent = value[1];
     notice.classList.add(value[2]);
     notice.hidden = false;
-    if (state === "success") {
-      cart = [];
-      writeStorage(STORAGE_KEY, cart);
-      renderCart();
-    }
     history.replaceState({}, "", `${location.pathname}${location.hash || ""}`);
   }
 

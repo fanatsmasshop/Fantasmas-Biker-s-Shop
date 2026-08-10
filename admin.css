@@ -908,3 +908,5 @@ dialog::backdrop {
     text-align: center;
   }
 }
+
+.payment-auto-note{display:inline-flex;align-items:center;min-height:34px;padding:8px 10px;border:1px solid #28a8ff44;background:#28a8ff0d;color:#9bd8ff;font-size:9px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}
