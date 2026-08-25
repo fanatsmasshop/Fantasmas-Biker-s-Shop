@@ -140,6 +140,22 @@ function normalizeCustomer(source = {}) {
   return { name, phone, email };
 }
 
+function activeNow(item, now = Date.now()) {
+  return item.active !== false && (!item.starts_at || new Date(item.starts_at).getTime() <= now) && (!item.ends_at || new Date(item.ends_at).getTime() >= now);
+}
+
+function ruleMatchesProduct(rule, product) {
+  if (rule.scope === "products") return Array.isArray(rule.product_ids) && rule.product_ids.includes(product.id);
+  if (rule.scope === "categories") return Array.isArray(rule.category_names) && rule.category_names.includes(product.category);
+  return true;
+}
+
+function applyDiscount(amount, type, value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return amount;
+  return Math.max(0, type === "percentage" ? amount * (1 - Math.min(100, numeric) / 100) : amount - numeric);
+}
+
 async function canonicalOrder(env, payload) {
   const customer = normalizeCustomer(payload.customer);
   const emailNotifications = Boolean(payload.email_notifications) && Boolean(customer.email);
@@ -170,19 +186,30 @@ async function canonicalOrder(env, payload) {
   });
 
   const ids = [...quantities.keys()];
-  const products = ids.length ? await supabaseRequest(env, `shop_products?select=id,name,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`) : [];
+  const products = ids.length ? await supabaseRequest(env, `shop_products?select=id,name,category,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`) : [];
   if (!Array.isArray(products) || products.length !== ids.length) throw new Error("Uno de los productos ya no está disponible");
 
+  const promotions = products.length ? await supabaseRequest(env, "shop_promotions?select=id,title,discount_type,discount_value,scope,product_ids,category_names,minimum_purchase,active,starts_at,ends_at&active=eq.true&discount_value=not.is.null") : [];
+  const activePromotions = Array.isArray(promotions) ? promotions.filter((promo) => activeNow(promo)) : [];
   const items = products.map((product) => {
     const quantity = quantities.get(product.id);
     const unitPrice = Number(product.price);
     if (!product.active || product.online_sale === false || !Number.isFinite(unitPrice) || unitPrice < 0) throw new Error(`${product.name} no está disponible para compra en línea`);
     if (product.stock !== null && quantity > Number(product.stock)) throw new Error(`Solo quedan ${product.stock} unidades de ${product.name}`);
+    let salePrice = unitPrice;
+    const appliedPromotions = [];
+    activePromotions.forEach((promo) => {
+      if (!ruleMatchesProduct(promo, product) || unitPrice * quantity < Number(promo.minimum_purchase || 0)) return;
+      salePrice = applyDiscount(salePrice, promo.discount_type, promo.discount_value);
+      appliedPromotions.push(promo.id);
+    });
     return {
       id: product.id,
       kind: "product",
       name: String(product.name).slice(0, 180),
-      unit_price: Math.round(unitPrice * 100) / 100,
+      original_unit_price: Math.round(unitPrice * 100) / 100,
+      unit_price: Math.round(salePrice * 100) / 100,
+      automatic_promotions: appliedPromotions,
       quantity,
       image_url: product.image_url || ""
     };
@@ -212,8 +239,25 @@ async function canonicalOrder(env, payload) {
     }
   }
 
-  const subtotal = Math.round(items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) / 100;
-  return { customer, emailNotifications, deliveryMethod, address, notes, items, raffleSelections, subtotal, requestKey };
+  const automaticSubtotal = Math.round(items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0) * 100) / 100;
+  const originalSubtotal = Math.round(items.reduce((sum, item) => sum + Number(item.original_unit_price ?? item.unit_price) * item.quantity, 0) * 100) / 100;
+  const couponCode = String(payload.coupon_code || "").trim().toUpperCase().slice(0, 32);
+  let coupon = null;
+  let couponDiscount = 0;
+  if (couponCode) {
+    const rows = await supabaseRequest(env, `shop_discount_codes?select=*&code=eq.${encodeURIComponent(couponCode)}&limit=1`);
+    coupon = rows?.[0];
+    if (!coupon || !activeNow(coupon)) throw new Error("El código promocional no existe o no está vigente");
+    if (coupon.max_uses !== null && Number(coupon.uses_count) >= Number(coupon.max_uses)) throw new Error("Este código promocional alcanzó su límite de usos");
+    if (automaticSubtotal < Number(coupon.minimum_purchase || 0)) throw new Error(`Este código requiere una compra mínima de $${Number(coupon.minimum_purchase).toLocaleString("es-MX")}`);
+    const eligible = items.reduce((sum, item) => {
+      const product = products.find((entry) => entry.id === item.id);
+      return product && ruleMatchesProduct(coupon, product) ? sum + item.unit_price * item.quantity : sum;
+    }, 0);
+    couponDiscount = Math.round((eligible - applyDiscount(eligible, coupon.discount_type, coupon.discount_value)) * 100) / 100;
+  }
+  const subtotal = Math.max(0, Math.round((automaticSubtotal - couponDiscount) * 100) / 100);
+  return { customer, emailNotifications, deliveryMethod, address, notes, items, raffleSelections, subtotal, originalSubtotal, automaticSubtotal, couponDiscount, coupon, requestKey };
 }
 
 async function createOrder(env, canonical, paymentMethod) {
@@ -234,7 +278,7 @@ async function createOrder(env, canonical, paymentMethod) {
     subtotal: canonical.subtotal,
     shipping_cost: null,
     total: canonical.subtotal,
-    metadata: { source: "web_cart_v11", request_key: canonical.requestKey }
+    metadata: { source: "web_cart_v14", request_key: canonical.requestKey, original_subtotal: canonical.originalSubtotal, automatic_discount: Math.max(0, canonical.originalSubtotal - canonical.automaticSubtotal), coupon_code: canonical.coupon?.code || null, coupon_discount: canonical.couponDiscount }
   };
   const rows = await supabaseRequest(env, "shop_orders?select=*", {
     method: "POST",
@@ -243,6 +287,12 @@ async function createOrder(env, canonical, paymentMethod) {
   });
   if (!Array.isArray(rows) || !rows[0]) throw new Error("No se pudo crear el pedido");
   const order = rows[0];
+  if (canonical.coupon?.id) {
+    await supabaseRequest(env, `shop_discount_codes?id=eq.${canonical.coupon.id}&uses_count=eq.${Number(canonical.coupon.uses_count || 0)}`, {
+      method: "PATCH", headers: { "Prefer": "return=minimal" },
+      body: JSON.stringify({ uses_count: Number(canonical.coupon.uses_count || 0) + 1, updated_at: new Date().toISOString() })
+    });
+  }
   if (canonical.raffleSelections.length) {
     try {
       await supabaseRequest(env, "rpc/reserve_shop_raffle_numbers", {

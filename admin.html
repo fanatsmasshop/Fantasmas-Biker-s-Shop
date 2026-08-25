@@ -8,7 +8,7 @@
   <title>Panel administrativo | Fantasmas Biker's Shop</title>
   <link rel="icon" href="favicon.png">
   <link rel="stylesheet" href="admin.css?v=12">
-  <link rel="stylesheet" href="editor.css?v=10.5">
+  <link rel="stylesheet" href="editor.css?v=14">
   <link rel="stylesheet" href="editor-preview-stable.css?v=10.6">
   <style>[hidden]{display:none!important}</style>
 </head>
@@ -128,6 +128,12 @@
                   <label>Separación<select name="custom_button_gap"><option value="small">Pequeña</option><option value="normal">Normal</option><option value="large">Amplia</option></select></label>
                 </div>
                 <div class="custom-buttons-editor" id="customButtonsEditor"></div>
+              </div>
+              <div class="inspector-group sticker-controls" id="stickerControls">
+                <div class="custom-buttons-heading"><div><b>Stickers de la sección</b><small>Capas decorativas que se adaptan a cada pantalla.</small></div></div>
+                <label class="custom-image-upload">Subir sticker<input name="sticker_image" type="file" accept="image/png,image/webp,image/gif"><small>Usa preferentemente imágenes transparentes. Máximo 5 MB.</small></label>
+                <div class="sticker-editor-list" id="stickerEditorList"></div>
+                <small class="custom-upload-status" id="stickerUploadStatus"></small>
               </div>
               <label class="inspector-toggle"><input name="enabled" type="checkbox"> Mostrar este bloque</label>
               <button class="danger-button" type="button" id="deleteSectionButton">Eliminar esta sección definitivamente</button>
@@ -305,6 +311,16 @@
         <label>Enlace del botón<input name="button_url" value="https://wa.me/525610329215"></label>
         <label>Inicio de vigencia<input name="starts_at" type="datetime-local"></label>
         <label>Fin de vigencia<input name="ends_at" type="datetime-local"></label>
+        <h3 class="form-section-title">Regla de descuento</h3>
+        <label>Tipo de campaña<select name="promotion_kind"><option value="automatic">Oferta automática</option><option value="code">Código promocional</option><option value="display">Solo anuncio, sin descuento</option></select></label>
+        <label data-code-field hidden>Código<input name="code" maxlength="32" placeholder="FANTASMA10"></label>
+        <label>Descuento<select name="discount_type"><option value="percentage">Porcentaje</option><option value="fixed">Cantidad fija</option></select></label>
+        <label>Valor<input name="discount_value" type="number" min="0.01" step="0.01" placeholder="10"></label>
+        <label>Compra mínima<input name="minimum_purchase" type="number" min="0" step="0.01" value="0"></label>
+        <label data-code-field hidden>Límite de usos<input name="max_uses" type="number" min="1" step="1" placeholder="Sin límite"></label>
+        <label>Aplicar a<select name="scope"><option value="all">Toda la tienda</option><option value="products">Productos seleccionados</option><option value="categories">Categorías seleccionadas</option></select></label>
+        <label class="wide" data-scope-products hidden>Productos<select name="product_ids" multiple size="7"></select><small>Usa Ctrl o Cmd para seleccionar varios.</small></label>
+        <label class="wide" data-scope-categories hidden>Categorías<select name="category_names" multiple size="6"></select><small>Usa Ctrl o Cmd para seleccionar varias.</small></label>
         <label class="wide file-label">Imagen opcional<input name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPG, WEBP o GIF. Máximo 5 MB.</small></label>
         <label class="check"><input name="active" type="checkbox" checked> Promoción activa</label>
       </div>
@@ -329,7 +345,7 @@
   <div class="toast" id="toast"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="admin.js?v=12"></script>
-  <script src="editor.js?v=11.5"></script>
+  <script src="admin.js?v=14"></script>
+  <script src="editor.js?v=14"></script>
 </body>
 </html>

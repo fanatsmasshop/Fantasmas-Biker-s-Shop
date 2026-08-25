@@ -85,6 +85,34 @@
     const value = section?.content;
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   };
+  function sectionStickers(section) {
+    if (!section) return [];
+    if (!section.content || typeof section.content !== "object" || Array.isArray(section.content)) section.content = {};
+    if (!Array.isArray(section.content.stickers)) section.content.stickers = [];
+    section.content.stickers = section.content.stickers.map((item) => ({
+      id: item.id || crypto.randomUUID(), url: String(item.url || ""), path: String(item.path || ""),
+      x: Math.max(0, Math.min(100, Number(item.x ?? 80))), y: Math.max(0, Math.min(100, Number(item.y ?? 20))),
+      size: Math.max(36, Math.min(360, Number(item.size ?? 110))), rotate: Math.max(-180, Math.min(180, Number(item.rotate ?? 0))),
+      layer: Math.max(1, Math.min(20, Number(item.layer ?? 5))), hide_mobile: Boolean(item.hide_mobile)
+    })).filter((item) => /^https?:\/\//i.test(item.url));
+    return section.content.stickers;
+  }
+  function renderStickerControls(section) {
+    const target = $("#stickerEditorList");
+    const stickers = sectionStickers(section);
+    target.innerHTML = stickers.length ? stickers.map((item, index) => `
+      <article class="sticker-editor-card" data-sticker-editor="${index}">
+        <div class="sticker-editor-head"><img src="${safe(item.url)}" alt=""><b>Sticker ${index + 1}</b><button type="button" data-remove-sticker="${index}">Eliminar</button></div>
+        <div class="sticker-editor-grid">
+          <label>Horizontal %<input type="number" min="0" max="100" value="${item.x}" data-sticker-field="x"></label>
+          <label>Vertical %<input type="number" min="0" max="100" value="${item.y}" data-sticker-field="y"></label>
+          <label>Tamaño px<input type="number" min="36" max="360" value="${item.size}" data-sticker-field="size"></label>
+          <label>Giro °<input type="number" min="-180" max="180" value="${item.rotate}" data-sticker-field="rotate"></label>
+          <label>Capa<input type="number" min="1" max="20" value="${item.layer}" data-sticker-field="layer"></label>
+          <label class="inspector-toggle"><input type="checkbox" data-sticker-field="hide_mobile" ${item.hide_mobile ? "checked" : ""}> Ocultar en celular</label>
+        </div>
+      </article>`).join("") : '<div class="custom-buttons-empty">Todavía no hay stickers en esta sección.</div>';
+  }
   const sectionAnchor = (section) => {
     if (!section) return "";
     if (sectionAnchors[section.section_key]) return sectionAnchors[section.section_key];
@@ -391,6 +419,7 @@
       : "Los productos, promociones, rifas y eventos se editan desde sus apartados del menú.";
     renderExtraControls(key);
     if (isCustomSection(section)) renderCustomSectionControls(section);
+    renderStickerControls(section);
     if (key === "hero") {
       ["hero_eyebrow","hero_title","hero_highlight","hero_intro","main_cta_text","main_cta_url","catalog_cta_text","catalog_cta_url"].forEach((name) => form.elements[name].value = storeSettings[name] || "");
       form.elements.event_datetime.value = localDate(storeSettings.event_datetime);
@@ -406,6 +435,77 @@
     $("#sectionInspector").classList.add("open");
     requestAnimationFrame(() => { $("#sectionInspector").scrollTop = 0; });
     markPreviewSelection(scrollPreview);
+  }
+
+  function markStickerChange() {
+    editorDirty = true;
+    $("#sectionEditorStatus").textContent = "Cambios sin publicar";
+  }
+
+  async function addSticker(file) {
+    const section = sections.find((item) => item.section_key === selectedSectionKey);
+    if (!section || !file) return;
+    const status = $("#stickerUploadStatus");
+    status.textContent = "Subiendo sticker…";
+    try {
+      const uploaded = await uploadImage(file, "stickers");
+      sectionStickers(section).push({ id: crypto.randomUUID(), url: uploaded.url, path: uploaded.path, x: 82, y: 18, size: 110, rotate: 0, layer: 5, hide_mobile: false });
+      renderStickerControls(section);
+      applyPreviewSections();
+      markStickerChange();
+      status.textContent = "Listo. También puedes arrastrarlo en la vista previa.";
+    } catch (error) { status.textContent = error.message; }
+  }
+
+  function updateStickerFromControl(target) {
+    const section = sections.find((item) => item.section_key === selectedSectionKey);
+    const card = target.closest("[data-sticker-editor]");
+    if (!section || !card) return;
+    const sticker = sectionStickers(section)[Number(card.dataset.stickerEditor)];
+    if (!sticker) return;
+    const field = target.dataset.stickerField;
+    sticker[field] = field === "hide_mobile" ? target.checked : Number(target.value);
+    applyPreviewSections();
+    markStickerChange();
+  }
+
+  async function removeSticker(index) {
+    const section = sections.find((item) => item.section_key === selectedSectionKey);
+    if (!section) return;
+    const removed = sectionStickers(section).splice(index, 1)[0];
+    if (removed?.path) await client.storage.from("shop-media").remove([removed.path]);
+    renderStickerControls(section);
+    applyPreviewSections();
+    markStickerChange();
+  }
+
+  function bindPreviewStickerDragging(doc) {
+    doc.querySelectorAll(".section-sticker").forEach((sticker) => {
+      sticker.onpointerdown = (event) => {
+        event.preventDefault(); event.stopPropagation();
+        const sectionElement = sticker.closest("[data-section-key]");
+        const section = sections.find((item) => item.section_key === sectionElement?.dataset.sectionKey);
+        const item = sectionStickers(section)[Number(sticker.dataset.stickerIndex)];
+        if (!section || !item) return;
+        selectSection(section.section_key, false);
+        sticker.setPointerCapture?.(event.pointerId);
+        const move = (pointer) => {
+          const rect = sectionElement.getBoundingClientRect();
+          item.x = Math.max(0, Math.min(100, ((pointer.clientX - rect.left) / rect.width) * 100));
+          item.y = Math.max(0, Math.min(100, ((pointer.clientY - rect.top) / rect.height) * 100));
+          sticker.style.setProperty("--sticker-x", `${item.x}%`);
+          sticker.style.setProperty("--sticker-y", `${item.y}%`);
+        };
+        const stop = () => {
+          sticker.removeEventListener("pointermove", move);
+          sticker.removeEventListener("pointerup", stop);
+          renderStickerControls(section);
+          markStickerChange();
+        };
+        sticker.addEventListener("pointermove", move);
+        sticker.addEventListener("pointerup", stop);
+      };
+    });
   }
 
   function renderExtraControls(key) {
@@ -843,6 +943,7 @@
       if (subtitle) subtitle.textContent = settings.subtitle || "";
     });
     bindPreviewSectionClicks(doc);
+    bindPreviewStickerDragging(doc);
     applyPreviewSettings(doc);
     markPreviewSelection(false);
     schedulePreviewHeight(doc);
@@ -1100,6 +1201,7 @@
     if (button.classList.contains("close-template-dialog")) $("#sectionTemplateDialog").close();
     if (button.id === "addCustomButton") addCustomButton();
     if (button.id === "removeCustomImage") removeCustomSectionImage();
+    if (button.dataset.removeSticker !== undefined) removeSticker(Number(button.dataset.removeSticker));
     if (button.id === "deleteSectionButton") deleteSection();
     if (button.dataset.deleteSection) deleteSection(button.dataset.deleteSection);
     if (button.dataset.removeCustomButton !== undefined) changeCustomButton(button.closest("[data-custom-button]")?.dataset.customButton, "remove");
@@ -1146,6 +1248,9 @@
   $("#sectionInspectorForm").addEventListener("input", updateSectionFromInspector);
   $("#sectionInspectorForm").addEventListener("change", updateSectionFromInspector);
   $("#sectionInspectorForm").addEventListener("change", (event) => { if (event.target.name === "custom_image" && event.target.files[0]) setCustomSectionImage(event.target.files[0]); });
+  $("#sectionInspectorForm").addEventListener("change", (event) => { if (event.target.name === "sticker_image" && event.target.files[0]) addSticker(event.target.files[0]); });
+  $("#stickerEditorList").addEventListener("input", (event) => { if (event.target.dataset.stickerField) updateStickerFromControl(event.target); });
+  $("#stickerEditorList").addEventListener("change", (event) => { if (event.target.dataset.stickerField) updateStickerFromControl(event.target); });
   $("#saveSectionsButton").addEventListener("click", saveSections);
   $("#categoryForm").addEventListener("submit", saveCategory);
   $("#cancelCategory").addEventListener("click", resetCategoryForm);

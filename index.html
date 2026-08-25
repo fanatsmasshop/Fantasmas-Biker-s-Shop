@@ -16,9 +16,9 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="logos.css">
   <link rel="stylesheet" href="dynamic.css">
-  <link rel="stylesheet" href="editor-public.css?v=10">
+  <link rel="stylesheet" href="editor-public.css?v=14">
   <link rel="stylesheet" href="shop-cart.css">
-  <link rel="stylesheet" href="product-images.css?v=12">
+  <link rel="stylesheet" href="product-images.css?v=14">
 </head>
 <body>
   <header class="encabezado" data-section-key="header">
@@ -222,6 +222,7 @@
         <label class="checkout-wide">Entrega<select name="delivery_method"><option value="pickup">Recoger en Fantasmas Biker's Shop</option><option value="shipping_quote">Cotizar envío</option></select></label>
         <label class="checkout-wide" id="shippingAddressField" hidden>Zona o dirección de envío<textarea name="delivery_address" rows="3" maxlength="500" placeholder="Alcaldía/municipio, colonia, C.P. y referencias"></textarea></label>
         <label class="checkout-wide">Notas del pedido<textarea name="notes" rows="3" maxlength="500" placeholder="Modelo, color, horario u otra indicación"></textarea></label>
+        <label class="checkout-wide coupon-field">Código promocional<input name="coupon_code" maxlength="32" autocomplete="off" placeholder="Ej. FANTASMA10"><small>Las ofertas automáticas y el código se acumulan.</small></label>
       </div>
       <fieldset class="payment-methods"><legend>¿Cómo deseas continuar?</legend>
         <label id="mercadoPagoMethod"><input type="radio" name="payment_method" value="mercadopago" checked><span><b>Pagar en línea</b><small>Tarjeta, saldo y medios disponibles en Mercado Pago.</small></span></label>
@@ -240,8 +241,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
-  <script src="site-editor.js?v=10.5"></script>
-  <script src="public-data.js?v=12"></script>
-  <script src="shop-cart.js?v=11"></script>
+  <script src="site-editor.js?v=14"></script>
+  <script src="public-data.js?v=14"></script>
+  <script src="shop-cart.js?v=14"></script>
 </body>
 </html>

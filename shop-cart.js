@@ -55,7 +55,7 @@
         kind: "product",
         cart_key: item.id,
         name: product?.name || item.name || "Producto",
-        price: Number(product?.price ?? item.price ?? 0),
+        price: Number(product?.sale_price ?? product?.price ?? item.price ?? 0),
         image_url: product?.image_url || item.image_url || "",
         stock,
         quantity: Math.max(1, Math.min(maximum || 1, Number(item.quantity) || 1))
@@ -227,6 +227,7 @@
       delivery_method: form.elements.delivery_method.value,
       delivery_address: form.elements.delivery_address.value.trim(),
       notes: form.elements.notes.value.trim(),
+      coupon_code: form.elements.coupon_code.value.trim().toUpperCase(),
       email_notifications: form.elements.email_notifications.checked,
       payment_method: form.elements.payment_method.value,
       items: normalizedCart().map((item) => item.kind === "raffle_number"

@@ -18,6 +18,31 @@
     return ` href="${escapeHtml(link)}"${/^https?:\/\//i.test(link) ? ' target="_blank" rel="noopener noreferrer"' : ""}`;
   };
 
+  function renderSectionStickers(section, settings) {
+    if (!section) return;
+    section.querySelectorAll(":scope > .section-sticker-layer").forEach((node) => node.remove());
+    const stickers = Array.isArray(sectionContent(settings).stickers) ? sectionContent(settings).stickers : [];
+    if (!stickers.length) return;
+    const layer = document.createElement("div");
+    layer.className = "section-sticker-layer";
+    layer.setAttribute("aria-hidden", "true");
+    stickers.filter((item) => item && safeMedia(item.url)).forEach((item, index) => {
+      const sticker = document.createElement("img");
+      sticker.className = `section-sticker${item.hide_mobile ? " sticker-hide-mobile" : ""}`;
+      sticker.src = safeMedia(item.url);
+      sticker.alt = "";
+      sticker.loading = "lazy";
+      sticker.dataset.stickerIndex = String(index);
+      sticker.style.setProperty("--sticker-x", `${Math.max(0, Math.min(100, Number(item.x ?? 80)))}%`);
+      sticker.style.setProperty("--sticker-y", `${Math.max(0, Math.min(100, Number(item.y ?? 20)))}%`);
+      sticker.style.setProperty("--sticker-size", `${Math.max(36, Math.min(360, Number(item.size ?? 110)))}px`);
+      sticker.style.setProperty("--sticker-rotate", `${Math.max(-180, Math.min(180, Number(item.rotate ?? 0)))}deg`);
+      sticker.style.zIndex = String(Math.max(1, Math.min(20, Number(item.layer ?? 5))));
+      layer.append(sticker);
+    });
+    if (layer.childElementCount) section.append(layer);
+  }
+
   function renderCustomSection(settings) {
     const main = document.querySelector("main");
     if (!main || !isCustom(settings)) return null;
@@ -108,6 +133,7 @@
       const subtitle = section.querySelector("[data-section-subtitle]");
       if (title && Object.prototype.hasOwnProperty.call(settings, "title")) title.textContent = settings.title || "";
       if (subtitle && Object.prototype.hasOwnProperty.call(settings, "subtitle")) subtitle.textContent = settings.subtitle || "";
+      renderSectionStickers(section, settings);
     });
     window.FANTASMAS_SECTION_STATE = state;
     document.dispatchEvent(new CustomEvent("fantasmas:sections-applied", { detail: { count: list.length } }));

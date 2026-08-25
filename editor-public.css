@@ -42,3 +42,9 @@
 .custom-button-size-full{width:100%;min-height:52px;padding:15px 24px}
 .custom-button-custom{background:var(--button-bg);color:var(--button-text)}
 @media(max-width:760px){.custom-section.custom-height-normal{min-height:420px}.custom-section.custom-height-large{min-height:560px}.custom-section.custom-buttons-row .custom-section-buttons{flex-wrap:wrap}.custom-section.custom-buttons-grid .custom-section-buttons{grid-template-columns:1fr}.custom-buttons-align-stretch .custom-section-button{flex-basis:100%}}
+.editable-section,[data-section-key]{position:relative}
+.section-sticker-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:8}
+.section-sticker{position:absolute;left:var(--sticker-x);top:var(--sticker-y);width:var(--sticker-size);max-width:42vw;height:auto;transform:translate(-50%,-50%) rotate(var(--sticker-rotate));transform-origin:center;object-fit:contain;user-select:none;-webkit-user-drag:none;filter:drop-shadow(0 8px 16px #0007)}
+html.fantasmas-builder-preview .section-sticker{pointer-events:auto;cursor:grab;outline:1px dashed #28a8ff88}
+html.fantasmas-builder-preview .section-sticker:active{cursor:grabbing;outline:2px solid #ff3da1}
+@media(max-width:680px){.section-sticker{--sticker-size:min(var(--sticker-size),110px);max-width:34vw}.section-sticker.sticker-hide-mobile{display:none}}

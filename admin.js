@@ -14,6 +14,7 @@
   let orderPage = 1;
   const ORDERS_PER_PAGE = 30;
   let promotions = [];
+  let discountCodes = [];
   let orders = [];
   let storeSettings = {};
 
@@ -124,9 +125,13 @@
   }
 
   async function loadPromotions() {
-    const { data, error } = await client.from("shop_promotions").select("*").order("sort_order").order("created_at", { ascending: false });
+    const [{ data, error }, codesResult] = await Promise.all([
+      client.from("shop_promotions").select("*").order("sort_order").order("created_at", { ascending: false }),
+      client.from("shop_discount_codes").select("*").order("created_at", { ascending: false })
+    ]);
     if (error) return toast(`No se pudieron cargar las promociones: ${error.message}`, true);
     promotions = data || [];
+    discountCodes = codesResult.error ? [] : (codesResult.data || []);
     renderPromotions();
   }
 
@@ -298,12 +303,24 @@
   }
 
   function renderPromotions() {
-    $("#promotionsList").innerHTML = promotions.length ? promotions.map((promo) => `
+    const rows = [...promotions.map((item) => ({ ...item, promotion_kind: item.discount_value ? "automatic" : "display" })), ...discountCodes.map((item) => ({ ...item, promotion_kind: "code", badge: `CÓDIGO ${item.code}`, sort_order: 0 }))];
+    $("#promotionsList").innerHTML = rows.length ? rows.map((promo) => `
       <article class="list-card">
         <div class="list-image">${promo.image_url ? `<img src="${escapeHtml(promo.image_url)}" alt="">` : "⚡"}</div>
-        <div class="list-main"><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.badge)} · Orden ${promo.sort_order}${promo.ends_at ? ` · Termina ${new Date(promo.ends_at).toLocaleDateString("es-MX")}` : ""}</p><div class="badges"><span class="badge ${promo.active ? "active" : "inactive"}">${promo.active ? "ACTIVA" : "INACTIVA"}</span></div></div>
-        <div class="list-actions"><button data-edit-promotion="${promo.id}">Editar</button><button data-toggle-promotion="${promo.id}">${promo.active ? "Desactivar" : "Activar"}</button><button class="delete" data-delete-promotion="${promo.id}">Eliminar</button></div>
+        <div class="list-main"><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.badge || "PROMOCIÓN")}${promo.discount_value ? ` · ${promo.discount_type === "percentage" ? `${promo.discount_value}%` : money(promo.discount_value)}` : ""}${promo.ends_at ? ` · Termina ${new Date(promo.ends_at).toLocaleDateString("es-MX")}` : ""}</p><div class="badges"><span class="badge ${promo.active ? "active" : "inactive"}">${promo.active ? "ACTIVA" : "INACTIVA"}</span><span class="badge">${promo.promotion_kind === "code" ? `${promo.uses_count}/${promo.max_uses || "∞"} usos` : promo.promotion_kind === "automatic" ? "AUTOMÁTICA" : "ANUNCIO"}</span></div></div>
+        <div class="list-actions"><button data-edit-promotion="${promo.id}" data-promotion-kind="${promo.promotion_kind}">Editar</button><button data-toggle-promotion="${promo.id}" data-promotion-kind="${promo.promotion_kind}">${promo.active ? "Desactivar" : "Activar"}</button><button class="delete" data-delete-promotion="${promo.id}" data-promotion-kind="${promo.promotion_kind}">Eliminar</button></div>
       </article>`).join("") : '<div class="empty">Aún no has creado promociones.</div>';
+  }
+
+  function refreshPromotionFields() {
+    const form = $("#promotionForm");
+    const kind = form.elements.promotion_kind.value;
+    const scope = form.elements.scope.value;
+    $$('[data-code-field]', form).forEach((node) => node.hidden = kind !== "code");
+    $$('[data-scope-products]', form).forEach((node) => node.hidden = scope !== "products");
+    $$('[data-scope-categories]', form).forEach((node) => node.hidden = scope !== "categories");
+    form.elements.discount_type.disabled = kind === "display";
+    form.elements.discount_value.disabled = kind === "display";
   }
 
   const orderStatusLabels = {
@@ -400,15 +417,26 @@
     form.elements.button_text.value = "Pedir por WhatsApp";
     form.elements.button_url.value = "https://wa.me/525610329215";
     form.elements.sort_order.value = 0;
+    form.elements.promotion_kind.value = promo?.promotion_kind || "automatic";
+    form.elements.discount_type.value = promo?.discount_type || "percentage";
+    form.elements.scope.value = promo?.scope || "all";
+    form.elements.minimum_purchase.value = promo?.minimum_purchase || 0;
+    form.elements.product_ids.innerHTML = products.map((item) => `<option value="${item.id}">${escapeHtml(item.name)}${item.sku ? ` · ${escapeHtml(item.sku)}` : ""}</option>`).join("");
+    form.elements.category_names.innerHTML = [...new Set(products.map((item) => item.category).filter(Boolean))].sort().map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
     $("#promotionDialogTitle").textContent = promo ? "Editar promoción" : "Nueva promoción";
     if (promo) {
-      ["id","title","subtitle","badge","button_text","button_url","sort_order"].forEach((key) => form.elements[key].value = promo[key] ?? "");
+      ["id","title","subtitle","badge","button_text","button_url","sort_order","discount_value","minimum_purchase","max_uses","code"].forEach((key) => { if (form.elements[key]) form.elements[key].value = promo[key] ?? ""; });
       form.elements.starts_at.value = toLocalInput(promo.starts_at);
       form.elements.ends_at.value = toLocalInput(promo.ends_at);
       form.elements.current_image_url.value = promo.image_url || "";
       form.elements.current_image_path.value = promo.image_path || "";
       form.elements.active.checked = promo.active;
+      form.elements.discount_type.value = promo.discount_type || "percentage";
+      form.elements.scope.value = promo.scope || "all";
+      [...form.elements.product_ids.options].forEach((option) => option.selected = (promo.product_ids || []).includes(option.value));
+      [...form.elements.category_names.options].forEach((option) => option.selected = (promo.category_names || []).includes(option.value));
     }
+    refreshPromotionFields();
     $("#promotionStatus").textContent = "";
     $("#promotionDialog").showModal();
   }
@@ -465,20 +493,38 @@
     try {
       const file = form.elements.image.files[0];
       const uploaded = await uploadImage(file, "promotions");
+      const kind = form.elements.promotion_kind.value;
+      const commonRule = {
+        discount_type: kind === "display" ? null : form.elements.discount_type.value,
+        discount_value: kind === "display" ? null : Number(form.elements.discount_value.value),
+        scope: form.elements.scope.value,
+        product_ids: [...form.elements.product_ids.selectedOptions].map((option) => option.value),
+        category_names: [...form.elements.category_names.selectedOptions].map((option) => option.value),
+        minimum_purchase: Number(form.elements.minimum_purchase.value || 0),
+        starts_at: form.elements.starts_at.value ? new Date(form.elements.starts_at.value).toISOString() : null,
+        ends_at: form.elements.ends_at.value ? new Date(form.elements.ends_at.value).toISOString() : null,
+        active: form.elements.active.checked, updated_at: new Date().toISOString()
+      };
+      if (kind !== "display" && (!Number.isFinite(commonRule.discount_value) || commonRule.discount_value <= 0)) throw new Error("Escribe un descuento mayor a cero.");
+      if (commonRule.discount_type === "percentage" && commonRule.discount_value > 100) throw new Error("El porcentaje no puede ser mayor a 100%.");
       const payload = {
         title: form.elements.title.value.trim(), subtitle: form.elements.subtitle.value.trim(), badge: form.elements.badge.value.trim(),
         button_text: form.elements.button_text.value.trim(), button_url: form.elements.button_url.value.trim(),
-        starts_at: form.elements.starts_at.value ? new Date(form.elements.starts_at.value).toISOString() : null,
-        ends_at: form.elements.ends_at.value ? new Date(form.elements.ends_at.value).toISOString() : null,
-        sort_order: Number(form.elements.sort_order.value || 0), active: form.elements.active.checked, updated_at: new Date().toISOString(),
+        ...commonRule, sort_order: Number(form.elements.sort_order.value || 0),
         image_url: uploaded?.url || form.elements.current_image_url.value || null,
         image_path: uploaded?.path || form.elements.current_image_path.value || null
       };
       const id = form.elements.id.value;
-      const query = id ? client.from("shop_promotions").update(payload).eq("id", id) : client.from("shop_promotions").insert(payload);
+      const table = kind === "code" ? "shop_discount_codes" : "shop_promotions";
+      const storedPayload = kind === "code" ? {
+        code: form.elements.code.value.trim().toUpperCase(), title: payload.title, ...commonRule,
+        max_uses: form.elements.max_uses.value ? Number(form.elements.max_uses.value) : null
+      } : payload;
+      if (kind === "code" && !/^[A-Z0-9_-]{3,32}$/.test(storedPayload.code)) throw new Error("El código debe tener entre 3 y 32 letras, números, guion o guion bajo.");
+      const query = id ? client.from(table).update(storedPayload).eq("id", id) : client.from(table).insert(storedPayload);
       const { error } = await query;
       if (error) throw error;
-      if (uploaded && form.elements.current_image_path.value) await removeImage(form.elements.current_image_path.value);
+      if (kind !== "code" && uploaded && form.elements.current_image_path.value) await removeImage(form.elements.current_image_path.value);
       $("#promotionDialog").close(); await loadPromotions(); updateStats(); toast("Promoción guardada correctamente.");
     } catch (error) { status.textContent = error.message; }
   });
@@ -585,7 +631,7 @@
       $("#view-orders").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (button.matches("[data-edit-product]")) openProduct(products.find((p) => p.id === button.dataset.editProduct));
-    if (button.matches("[data-edit-promotion]")) openPromotion(promotions.find((p) => p.id === button.dataset.editPromotion));
+    if (button.matches("[data-edit-promotion]")) openPromotion(button.dataset.promotionKind === "code" ? { ...discountCodes.find((p) => p.id === button.dataset.editPromotion), promotion_kind: "code" } : { ...promotions.find((p) => p.id === button.dataset.editPromotion), promotion_kind: promotions.find((p) => p.id === button.dataset.editPromotion)?.discount_value ? "automatic" : "display" });
     if (button.matches("[data-toggle-product]")) {
       const item = products.find((p) => p.id === button.dataset.toggleProduct);
       const { error } = await client.from("shop_products").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id);
@@ -610,8 +656,9 @@
       }
     }
     if (button.matches("[data-toggle-promotion]")) {
-      const item = promotions.find((p) => p.id === button.dataset.togglePromotion);
-      const { error } = await client.from("shop_promotions").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id);
+      const code = button.dataset.promotionKind === "code";
+      const item = code ? discountCodes.find((p) => p.id === button.dataset.togglePromotion) : promotions.find((p) => p.id === button.dataset.togglePromotion);
+      const { error } = await client.from(code ? "shop_discount_codes" : "shop_promotions").update({ active: !item.active, updated_at: new Date().toISOString() }).eq("id", item.id);
       if (!error) { await loadPromotions(); updateStats(); }
     }
     if (button.matches("[data-delete-product]")) {
@@ -621,9 +668,10 @@
       if (!error) { await removeImage(item.image_path); await loadProducts(); updateStats(); toast("Producto eliminado."); }
     }
     if (button.matches("[data-delete-promotion]")) {
-      const item = promotions.find((p) => p.id === button.dataset.deletePromotion);
+      const code = button.dataset.promotionKind === "code";
+      const item = code ? discountCodes.find((p) => p.id === button.dataset.deletePromotion) : promotions.find((p) => p.id === button.dataset.deletePromotion);
       if (!confirm(`¿Eliminar definitivamente “${item.title}”?`)) return;
-      const { error } = await client.from("shop_promotions").delete().eq("id", item.id);
+      const { error } = await client.from(code ? "shop_discount_codes" : "shop_promotions").delete().eq("id", item.id);
       if (!error) { await removeImage(item.image_path); await loadPromotions(); updateStats(); toast("Promoción eliminada."); }
     }
     if (button.matches("[data-order-paid]")) {
@@ -668,6 +716,8 @@
     event.target.value = "";
   });
   $("#newPromotionButton").addEventListener("click", () => openPromotion());
+  $("#promotionForm").elements.promotion_kind.addEventListener("change", refreshPromotionFields);
+  $("#promotionForm").elements.scope.addEventListener("change", refreshPromotionFields);
   $("#productSearch").addEventListener("input", () => { productPage = 1; renderProducts(); });
   $("#productFilter").addEventListener("change", () => { productPage = 1; renderProducts(); });
   $("#orderSearch").addEventListener("input", () => { orderPage = 1; renderOrders(); });

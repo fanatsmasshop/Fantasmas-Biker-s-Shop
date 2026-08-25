@@ -5,6 +5,7 @@
 
   const client = window.supabase.createClient(config.url, config.publishableKey);
   let products = [];
+  let automaticPromotions = [];
   let selectedCategory = "Todas";
   let visibleProductCount = 24;
   const PRODUCTS_PER_BATCH = 24;
@@ -53,6 +54,24 @@
     return ` href="${escapeHtml(link)}"${/^https?:\/\//i.test(link) ? ' target="_blank" rel="noopener noreferrer"' : ""}`;
   };
   const setHref = (selector, value) => applyHref(document.querySelector(selector), value);
+  function promotionMatchesProduct(promo, product) {
+    if (!promo.discount_value) return false;
+    if (promo.scope === "products") return (promo.product_ids || []).includes(product.id);
+    if (promo.scope === "categories") return (promo.category_names || []).includes(product.category);
+    return true;
+  }
+  function productOffer(product) {
+    const original = Number(product.price);
+    let price = original;
+    const applied = [];
+    automaticPromotions.forEach((promo) => {
+      if (!promotionMatchesProduct(promo, product)) return;
+      const candidate = promo.discount_type === "percentage" ? price * (1 - Number(promo.discount_value) / 100) : price - Number(promo.discount_value);
+      price = Math.max(0, candidate);
+      applied.push(promo.title);
+    });
+    return { original, price: Math.round(price * 100) / 100, applied };
+  }
 
   function renderProducts() {
     const target = document.querySelector("#productosDinamicos");
@@ -66,6 +85,8 @@
     });
     const visible = filtered.slice(0, visibleProductCount);
     target.innerHTML = visible.length ? visible.map((product) => {
+      const offer = productOffer(product);
+      product.sale_price = offer.price;
       const hasStock = product.stock === null || product.stock === undefined || Number(product.stock) > 0;
       const canBuy = product.price !== null && product.price !== undefined && product.online_sale !== false && hasStock;
       const stockNote = product.stock === null || product.stock === undefined ? "" : Number(product.stock) > 0 ? `${product.stock} disponible${Number(product.stock) === 1 ? "" : "s"}` : "Agotado";
@@ -79,7 +100,7 @@
           <small>${escapeHtml(product.category)}</small>
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description)}</p>
-          <div class="producto-precio">${product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(product.price)}</strong></div>
+          <div class="producto-precio">${offer.price < offer.original ? `<del>${money(offer.original)}</del>` : product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(offer.price)}</strong>${offer.applied.length ? '<span class="product-offer-badge">OFERTA</span>' : ""}</div>
           ${canBuy ? `<button class="product-add-cart" type="button" data-add-to-cart="${product.id}">Agregar al carrito</button>` : `<a href="https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(`Hola, quiero información del producto: ${product.name}`)}" target="_blank">Consultar disponibilidad →</a>`}
           ${stockNote ? `<small class="product-stock-note">${escapeHtml(stockNote)}</small>` : ""}
         </div>
@@ -175,6 +196,9 @@
     if (!target || !section) return;
     const { data, error } = await client.from("shop_promotions").select("*").eq("active", true).order("sort_order").order("created_at", { ascending: false });
     if (error || !data || data.length === 0) return;
+    automaticPromotions = data.filter((promo) => promo.discount_value);
+    window.FANTASMAS_AUTOMATIC_PROMOTIONS = automaticPromotions;
+    if (products.length) { renderProducts(); window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products })); }
     target.innerHTML = data.map((promo) => `
       <article class="promocion-publica ${promo.image_url ? "con-imagen" : ""}" ${promo.image_url ? `style="background-image:linear-gradient(90deg,#08090dec,#08090d99),url('${escapeHtml(promo.image_url)}')"` : ""}>
         <span>${escapeHtml(promo.badge)}</span><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.subtitle)}</p><a${linkAttributes(promo.button_url)}>${escapeHtml(promo.button_text)} →</a>
