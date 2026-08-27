@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fantasmas-biker-s-shop.pages.dev/sitemap.xml
