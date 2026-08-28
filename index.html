@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="dynamic.css">
   <link rel="stylesheet" href="editor-public.css?v=14">
   <link rel="stylesheet" href="shop-cart.css">
+  <link rel="stylesheet" href="asistente-fantasma.css?v=1">
   <link rel="stylesheet" href="product-images.css?v=14">
 </head>
 <body>
@@ -243,11 +244,19 @@
     <section class="transfer-result" id="transferResult" hidden><p>PEDIDO REGISTRADO</p><h2 id="transferOrderNumber"></h2><div id="bankDetails"></div><p>Envía tu comprobante por WhatsApp para confirmar el pedido.</p><a id="transferWhatsappButton" target="_blank" rel="noopener">Enviar comprobante</a><a id="transferTrackingButton">Consultar mi pedido</a><button type="button" id="transferFinishButton">Terminar</button></section>
   </dialog>
 
+  <button class="fantasma-assistant-launcher" id="fantasmaAssistantLauncher" type="button">👻 <span>Asistente Fantasma</span></button>
+  <aside class="fantasma-assistant" id="fantasmaAssistant" aria-label="Asistente Fantasma público" hidden>
+    <header><div><small>FANTASMAS BIKER'S SHOP</small><h2>Asistente Fantasma</h2><p>Te ayudo a encontrar lo que buscas.</p></div><button type="button" id="fantasmaAssistantClose" aria-label="Cerrar">×</button></header>
+    <div class="assistant-messages" id="assistantMessages"></div>
+    <div class="assistant-quick-actions"><button type="button" data-assistant-question="¿Qué promociones tienen?">Promociones</button><button type="button" data-assistant-question="Quiero buscar un producto">Buscar producto</button><button type="button" data-assistant-question="¿Cómo consulto mi pedido?">Mi pedido</button></div>
+    <form class="assistant-input" id="assistantForm"><input id="assistantInput" autocomplete="off" placeholder="Escribe tu pregunta…"><button type="submit" aria-label="Enviar">➤</button></form>
+  </aside>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
   <script src="site-editor.js?v=14"></script>
   <script src="public-data.js?v=14"></script>
   <script src="shop-cart.js?v=14"></script>
+  <script src="asistente-fantasma.js?v=1"></script>
 </body>
 </html>

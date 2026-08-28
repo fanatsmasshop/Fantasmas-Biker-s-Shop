@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="admin.css?v=12">
   <link rel="stylesheet" href="editor.css?v=14">
   <link rel="stylesheet" href="editor-preview-stable.css?v=10.6">
+  <link rel="stylesheet" href="asistente-fantasma.css?v=1">
   <style>[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -349,9 +350,17 @@
   </dialog>
 
   <div class="toast" id="toast"></div>
+  <button class="fantasma-assistant-launcher admin-launcher" id="fantasmaAssistantLauncher" type="button">👻 <span>Asistente de administración</span></button>
+  <aside class="fantasma-assistant admin-assistant" id="fantasmaAssistant" aria-label="Asistente Fantasma administrativo" hidden>
+    <header><div><small>PANEL PRIVADO · FANTASMAS</small><h2>Asistente Fantasma</h2><p>Te ayudo a operar y actualizar la tienda.</p></div><button type="button" id="fantasmaAssistantClose" aria-label="Cerrar">×</button></header>
+    <div class="assistant-messages" id="assistantMessages"></div>
+    <div class="assistant-quick-actions"><button type="button" data-assistant-question="¿Qué puedo hacer aquí?">Ayuda</button><button type="button" data-assistant-question="Abrir promociones">Promociones</button><button type="button" data-assistant-question="Abrir productos">Productos</button></div>
+    <form class="assistant-input" id="assistantForm"><input id="assistantInput" autocomplete="off" placeholder="Ej. abrir pedidos…"><button type="submit" aria-label="Enviar">➤</button></form>
+  </aside>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="admin.js?v=14"></script>
   <script src="editor.js?v=14"></script>
+  <script src="asistente-fantasma.js?v=1"></script>
 </body>
 </html>
