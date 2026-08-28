@@ -8,7 +8,7 @@
 
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8" };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const WORKER_VERSION = "13.0.0";
+const WORKER_VERSION = "14.1.0";
 const RATE_BUCKETS = new Map();
 
 function enforceRateLimit(request, scope, limit, windowMs) {
@@ -525,6 +525,30 @@ async function handleManualOrder(request, env) {
   return response(request, env, { ok: true, order_id: order.id, order_number: order.order_number, total: order.total, payment_method: paymentMethod, email_sent: emailSent });
 }
 
+async function handleCouponValidation(request, env) {
+  const payload = await readJson(request);
+  const code = String(payload.coupon_code || "").trim().toUpperCase();
+  if (!code) throw new Error("Escribe un código promocional");
+  const canonical = await canonicalOrder(env, {
+    ...payload,
+    coupon_code: code,
+    customer: { name: "Cliente", phone: "5512345678" },
+    delivery_method: "pickup",
+    payment_method: "quote",
+    request_key: crypto.randomUUID()
+  });
+  if (!canonical.coupon) throw new Error("El código promocional no existe o no está vigente");
+  return response(request, env, {
+    ok: true,
+    code: canonical.coupon.code,
+    title: canonical.coupon.title || `Código ${canonical.coupon.code}`,
+    original_subtotal: canonical.originalSubtotal,
+    automatic_subtotal: canonical.automaticSubtotal,
+    coupon_discount: canonical.couponDiscount,
+    subtotal: canonical.subtotal
+  });
+}
+
 async function handleTrackOrder(request, env) {
   const payload = await readJson(request);
   const orderNumber = String(payload.order_number || "").trim().toUpperCase().slice(0, 20);
@@ -574,6 +598,19 @@ async function handleAdminOrderStatus(request, env) {
   if (!order) throw new Error("Pedido no encontrado");
   const emailSent = await sendOrderEmail(env, order);
   return response(request, env, { ok: true, order: publicOrder(order), email_sent: emailSent });
+}
+
+async function handleAdminOrderDelete(request, env) {
+  await authenticateAdmin(request, env);
+  const payload = await readJson(request);
+  const orderId = String(payload.order_id || "");
+  if (!UUID_PATTERN.test(orderId)) throw new Error("Pedido inválido");
+  const rows = await supabaseRequest(env, `shop_orders?select=id,status,stock_applied&id=eq.${orderId}&limit=1`);
+  const order = rows?.[0];
+  if (!order) throw new Error("Pedido no encontrado");
+  if (!order.stock_applied) await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) }).catch(() => null);
+  await supabaseRequest(env, `shop_orders?id=eq.${orderId}`, { method: "DELETE", headers: { "Prefer": "return=minimal" } });
+  return response(request, env, { ok: true, deleted: orderId });
 }
 
 async function mercadoPagoPayment(env, paymentId) {
@@ -644,8 +681,10 @@ export default {
       }
       if (request.method === "POST" && url.pathname === "/checkout") { enforceRateLimit(request, "checkout", 12, 300000); return await handleCheckout(request, env); }
       if (request.method === "POST" && url.pathname === "/order") { enforceRateLimit(request, "order", 12, 300000); return await handleManualOrder(request, env); }
+      if (request.method === "POST" && url.pathname === "/coupon/validate") { enforceRateLimit(request, "coupon", 30, 300000); return await handleCouponValidation(request, env); }
       if (request.method === "POST" && url.pathname === "/track") { enforceRateLimit(request, "track", 20, 600000); return await handleTrackOrder(request, env); }
       if (request.method === "POST" && url.pathname === "/admin/order-status") return await handleAdminOrderStatus(request, env);
+      if (request.method === "POST" && url.pathname === "/admin/order-delete") return await handleAdminOrderDelete(request, env);
       if (request.method === "POST" && url.pathname === "/admin/email-test") return await handleAdminEmailTest(request, env);
       if (request.method === "POST" && url.pathname === "/webhook") return await handleWebhook(request, env);
       return response(request, env, { ok: false, error: "Ruta no encontrada" }, 404);

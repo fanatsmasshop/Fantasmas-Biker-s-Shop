@@ -385,6 +385,7 @@
           ${order.status === "processing" ? `<button data-order-status="ready" data-order-id="${order.id}">Marcar listo</button>` : ""}
           ${order.status === "ready" ? `<button data-order-status="fulfilled" data-order-id="${order.id}">Entregado</button>` : ""}
           ${!["fulfilled","cancelled"].includes(order.status) ? `<button class="delete" data-order-status="cancelled" data-order-id="${order.id}">Cancelar</button>` : ""}
+          <button class="delete" data-delete-order="${order.id}">Eliminar</button>
         </div>
       </article>`;
     }).join("") : '<div class="empty">No hay pedidos con ese filtro.</div>';
@@ -690,6 +691,18 @@
         await loadOrders();
         toast(result.email_sent ? "Estado actualizado y correo enviado." : "Estado del pedido actualizado.");
       } catch (error) { toast(error.message, true); }
+    }
+    if (button.matches("[data-delete-order]")) {
+      const order = orders.find((item) => item.id === button.dataset.deleteOrder);
+      if (!order) return;
+      const warning = order.stock_applied ? " El inventario ya aplicado no se restaurará." : "";
+      if (!confirm(`¿Eliminar definitivamente el pedido ${order.order_number}? Esta acción no se puede deshacer.${warning}`)) return;
+      button.disabled = true;
+      try {
+        await adminWorkerRequest("/admin/order-delete", { order_id: order.id });
+        await loadOrders();
+        toast("Pedido eliminado definitivamente.");
+      } catch (error) { button.disabled = false; toast(error.message, true); }
     }
   });
 

@@ -17,6 +17,7 @@
   let settings = window.FANTASMAS_STORE_SETTINGS || {};
   let emailAvailabilityWorker = "";
   let checkoutRequestKey = "";
+  let appliedCoupon = null;
 
   function readStorage(key, fallback) {
     try {
@@ -185,6 +186,10 @@
     $("#transferResult").hidden = true;
     $("#checkoutStatus").textContent = "";
     $("#checkoutStatus").classList.remove("error");
+    appliedCoupon = null;
+    $("#couponFeedback").textContent = "";
+    $("#couponFeedback").className = "coupon-feedback";
+    updateCheckoutSummary();
     checkoutOptions(preferredMethod);
     restoreCustomer();
     updateDeliveryFields();
@@ -217,6 +222,44 @@
   function updateEmailRequired() {
     const form = $("#checkoutForm");
     form.elements.email.required = form.elements.email_notifications.checked;
+  }
+
+  function updateCheckoutSummary(quote = null) {
+    const base = quote ? Number(quote.original_subtotal || 0) : subtotal();
+    const automatic = quote ? Number(quote.automatic_subtotal || base) : base;
+    const coupon = quote ? Number(quote.coupon_discount || 0) : 0;
+    const total = quote ? Number(quote.subtotal || 0) : base;
+    $("#checkoutTotal").textContent = money(total);
+    const lines = [];
+    if (base > automatic) lines.push(`<p class="discount"><span>Oferta automática</span><b>−${money(base - automatic)}</b></p>`);
+    if (coupon) lines.push(`<p class="discount"><span>Código ${escapeHtml(appliedCoupon?.code || "")}</span><b>−${money(coupon)}</b></p>`);
+    $("#checkoutDiscountLines").innerHTML = lines.join("");
+  }
+
+  async function applyCoupon() {
+    const input = $("#couponCodeInput");
+    const button = $("#applyCouponButton");
+    const feedback = $("#couponFeedback");
+    const code = input.value.trim().toUpperCase();
+    appliedCoupon = null;
+    updateCheckoutSummary();
+    if (!code) { feedback.textContent = "Escribe un código promocional."; feedback.className = "coupon-feedback error"; return; }
+    button.disabled = true;
+    feedback.textContent = "Verificando código…";
+    feedback.className = "coupon-feedback";
+    try {
+      const result = await postWorker("/coupon/validate", {
+        coupon_code: code,
+        items: normalizedCart().map((item) => item.kind === "raffle_number" ? { kind: "raffle_number", raffle_id: item.raffle_id, number: item.number, quantity: 1 } : { kind: "product", id: item.id, quantity: item.quantity })
+      });
+      appliedCoupon = { code, ...result };
+      feedback.textContent = `Código aplicado. Ahorras ${money(result.coupon_discount)} adicionales.`;
+      feedback.className = "coupon-feedback success";
+      updateCheckoutSummary(result);
+    } catch (error) {
+      feedback.textContent = error.message;
+      feedback.className = "coupon-feedback error";
+    } finally { button.disabled = false; }
   }
 
   function orderPayload(form) {
@@ -373,6 +416,8 @@
   $("#checkoutForm").addEventListener("submit", submitCheckout);
   $("#checkoutForm").elements.delivery_method.addEventListener("change", updateDeliveryFields);
   $("#checkoutForm").elements.email_notifications.addEventListener("change", updateEmailRequired);
+  $("#applyCouponButton").addEventListener("click", applyCoupon);
+  $("#couponCodeInput").addEventListener("input", () => { if (appliedCoupon && $("#couponCodeInput").value.trim().toUpperCase() !== appliedCoupon.code) { appliedCoupon = null; $("#couponFeedback").textContent = "Pulsa Aplicar para validar el nuevo código."; $("#couponFeedback").className = "coupon-feedback"; updateCheckoutSummary(); } });
   $("#closePaymentNotice").addEventListener("click", () => $("#paymentReturnNotice").hidden = true);
   window.addEventListener("fantasmas:products-ready", (event) => { products = Array.isArray(event.detail) ? event.detail : []; renderCart(); });
   window.addEventListener("fantasmas:settings-ready", () => { settings = window.FANTASMAS_STORE_SETTINGS || {}; });
