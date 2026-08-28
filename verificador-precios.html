@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#07080b">
+  <title>Verificador de precios | Fantasmas Biker's Shop</title>
+  <link rel="stylesheet" href="verificador-precios.css">
+</head>
+<body>
+  <main class="price-checker">
+    <header class="checker-header"><a href="index.html">← Volver a Fantasmas</a><div><span>FANTASMAS BIKER'S SHOP</span><h1>Verificador de precios</h1></div><b id="productCount">Cargando…</b></header>
+    <section class="checker-card">
+      <p class="eyebrow">CONSULTA RÁPIDA</p><h2>Escanea o escribe el código</h2>
+      <form id="lookupForm"><input id="codeInput" autocomplete="off" inputmode="numeric" autofocus placeholder="Código de barras o SKU"><button type="submit">Consultar</button></form>
+      <div class="checker-actions"><button type="button" id="scanButton">▣ Escanear con cámara</button><label>Actualizar productos<input id="csvInput" type="file" accept=".csv,text/csv"></label></div>
+      <p class="checker-status" id="checkerStatus">Cargando productos de Aronium…</p>
+      <div class="camera-box" id="cameraBox" hidden><video id="cameraVideo" playsinline muted></video><div class="scan-frame"></div><button type="button" id="stopScanButton">Detener cámara</button></div>
+      <section class="price-result" id="priceResult" hidden><small>PRODUCTO ENCONTRADO</small><h2 id="resultName"></h2><p><span>Código</span><b id="resultCode"></b></p><div class="price-line"><span>Precio</span><strong id="resultPrice"></strong></div></section>
+      <section class="not-found" id="notFound" hidden>No encontramos ese código. Verifica que esté escrito completo.</section>
+    </section>
+  </main>
+  <script src="verificador-precios.js"></script>
+</body>
+</html>
