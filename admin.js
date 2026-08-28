@@ -452,6 +452,7 @@
   function renderBulkProductQueue() {
     const target = $("#bulkImageQueue");
     const save = $("#saveBulkProductsButton");
+    const analyze = $("#analyzeBulkProductsButton");
     if (!target || !save) return;
     target.innerHTML = bulkProductDrafts.map((draft, index) => `<article class="bulk-product-draft" data-bulk-index="${index}">
       <img src="${draft.preview}" alt="Vista previa">
@@ -459,14 +460,42 @@
       <button type="button" class="delete" data-remove-bulk="${index}" aria-label="Quitar imagen">×</button>
     </article>`).join("");
     save.disabled = !bulkProductDrafts.length;
+    if (analyze) analyze.disabled = !bulkProductDrafts.length;
     save.textContent = bulkProductDrafts.length ? `Guardar ${bulkProductDrafts.length} productos` : "Guardar productos seleccionados";
+  }
+
+  function imageAsBase64(file) {
+    return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(",")[1]); reader.onerror = reject; reader.readAsDataURL(file); });
+  }
+
+  async function analyzeBulkProducts() {
+    if (!bulkProductDrafts.length) return;
+    const status = $("#bulkProductsStatus");
+    const button = $("#analyzeBulkProductsButton");
+    button.disabled = true; status.textContent = "Analizando imágenes con Ollama local…";
+    try {
+      for (let index = 0; index < bulkProductDrafts.length; index += 1) {
+        const draft = bulkProductDrafts[index];
+        status.textContent = `Analizando imagen ${index + 1} de ${bulkProductDrafts.length}…`;
+        const response = await fetch("http://localhost:11434/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "llama3.2-vision", stream: false, format: "json", images: [await imageAsBase64(draft.file)], prompt: "Analiza esta foto de producto para una tienda biker mexicana. Devuelve solo JSON válido con las claves name, category y description. Usa español. El nombre debe ser corto y específico; no inventes marca, talla, material o precio si no son visibles. Si no puedes identificarlo con seguridad, usa un nombre descriptivo prudente y category General." }) });
+        if (!response.ok) throw new Error("Ollama no respondió");
+        const result = await response.json();
+        const suggestion = JSON.parse(result.response || "{}");
+        if (suggestion.name) draft.name = String(suggestion.name).trim();
+        if (suggestion.category) draft.category = String(suggestion.category).trim();
+        draft.description = suggestion.description ? String(suggestion.description).trim() : "";
+        renderBulkProductQueue();
+      }
+      status.textContent = "Sugerencias listas. Revísalas antes de guardar.";
+    } catch (error) { status.textContent = "No se pudo usar Ollama. Instala el modelo llama3.2-vision o continúa editando manualmente."; }
+    finally { button.disabled = !bulkProductDrafts.length; }
   }
 
   function addBulkProductImages(files) {
     const selected = [...files].filter((file) => file.type.startsWith("image/")).slice(0, 69);
     if (!selected.length) return;
     bulkProductDrafts.forEach((draft) => URL.revokeObjectURL(draft.preview));
-    bulkProductDrafts = selected.map((file) => ({ file, preview: URL.createObjectURL(file), name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "), price: "", category: "General" }));
+    bulkProductDrafts = selected.map((file) => ({ file, preview: URL.createObjectURL(file), name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "), price: "", category: "General", description: "" }));
     $("#bulkProductsStatus").textContent = selected.length < files.length ? "Se tomaron las primeras 69 imágenes." : "";
     renderBulkProductQueue();
   }
@@ -481,7 +510,7 @@
     try {
       for (const draft of bulkProductDrafts) {
         const uploaded = await uploadImage(draft.file, "products");
-        const { error } = await client.from("shop_products").insert({ name: draft.name.trim(), category: draft.category.trim() || "General", description: "", price: Number(draft.price), image_url: uploaded.url, image_path: uploaded.path, active: true, featured: false, online_sale: true, sort_order: 0, updated_at: new Date().toISOString() });
+        const { error } = await client.from("shop_products").insert({ name: draft.name.trim(), category: draft.category.trim() || "General", description: draft.description || "", price: Number(draft.price), image_url: uploaded.url, image_path: uploaded.path, active: true, featured: false, online_sale: true, sort_order: 0, updated_at: new Date().toISOString() });
         if (error) throw error;
       }
       bulkProductDrafts.forEach((draft) => URL.revokeObjectURL(draft.preview));
@@ -777,6 +806,7 @@
     event.target.value = "";
   });
   $("#bulkProductImages").addEventListener("change", (event) => { addBulkProductImages(event.target.files); });
+  $("#analyzeBulkProductsButton")?.addEventListener("click", analyzeBulkProducts);
   $("#saveBulkProductsButton").addEventListener("click", saveBulkProducts);
   $("#bulkImageQueue").addEventListener("input", (event) => { const card = event.target.closest("[data-bulk-index]"); if (!card) return; const draft = bulkProductDrafts[Number(card.dataset.bulkIndex)]; if (draft) draft[event.target.dataset.bulkField] = event.target.value; });
   $("#bulkImageQueue").addEventListener("click", (event) => { const button = event.target.closest("[data-remove-bulk]"); if (!button) return; const index = Number(button.dataset.removeBulk); URL.revokeObjectURL(bulkProductDrafts[index]?.preview); bulkProductDrafts.splice(index, 1); renderBulkProductQueue(); });
