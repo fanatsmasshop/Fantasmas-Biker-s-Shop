@@ -147,6 +147,12 @@
         <div class="page-head"><div><p class="eyebrow">CATÁLOGO</p><h1>Productos</h1></div><div class="head-actions"><button class="secondary" id="downloadProductsTemplate" type="button">Plantilla CSV</button><button class="secondary" id="importProductsButton" type="button">Importar CSV</button><button class="primary" id="newProductButton" type="button">+ Nuevo producto</button></div></div>
         <input id="productsCsvFile" type="file" accept=".csv,text/csv" hidden>
         <div class="toolbar"><input id="productSearch" type="search" placeholder="Buscar por nombre, SKU o categoría..."><select id="productFilter"><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Ocultos</option><option value="featured">Destacados</option><option value="low_stock">Pocas existencias (1–5)</option><option value="out_of_stock">Agotados</option><option value="unlimited">Sin límite</option></select></div>
+        <section class="bulk-catalog-card">
+          <div><p class="eyebrow">CARGA RÁPIDA</p><h2>Agrega tus productos con fotografías</h2><p>Selecciona varias de tus 69 imágenes. Antes de guardar podrás corregir nombre, precio y categoría de cada una.</p></div>
+          <label class="bulk-file-picker">Seleccionar imágenes<input id="bulkProductImages" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple><small>Hasta 69 imágenes · máximo 5 MB cada una</small></label>
+          <div class="bulk-image-queue" id="bulkImageQueue"></div>
+          <div class="bulk-actions"><button class="primary" type="button" id="saveBulkProductsButton" disabled>Guardar productos seleccionados</button><span class="form-status" id="bulkProductsStatus"></span></div>
+        </section>
         <div class="admin-list" id="productsList"></div>
         <div class="catalog-pagination" id="productsPagination" aria-live="polite"></div>
       </section>

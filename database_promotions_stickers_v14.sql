@@ -59,6 +59,13 @@ grant all on table public.shop_discount_codes to service_role;
 -- Las nuevas tablas ya no quedan expuestas automáticamente en proyectos actuales.
 grant select on table public.shop_promotions to anon, authenticated;
 
+-- Refuerzo para instalaciones que ya tenían promociones pero no permisos
+-- completos para guardarlas desde el panel administrativo.
+drop policy if exists "admins_manage_promotions" on public.shop_promotions;
+create policy "admins_manage_promotions" on public.shop_promotions
+  for all to authenticated using (public.is_shop_admin()) with check (public.is_shop_admin());
+grant select, insert, update, delete on table public.shop_promotions to authenticated;
+
 create index if not exists shop_raffle_draws_drawn_by_idx on public.shop_raffle_draws(drawn_by);
 create index if not exists shop_raffle_draws_raffle_number_idx on public.shop_raffle_draws(raffle_number_id);
 

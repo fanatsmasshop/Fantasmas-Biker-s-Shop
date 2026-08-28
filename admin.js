@@ -17,6 +17,7 @@
   let discountCodes = [];
   let orders = [];
   let storeSettings = {};
+  let bulkProductDrafts = [];
 
   function toast(message, error = false) {
     const element = $("#toast");
@@ -33,7 +34,7 @@
 
   function money(value) {
     if (value === null || value === undefined || value === "") return "Consultar";
-    return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(value);
+    return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   }
 
   function toLocalInput(value) {
@@ -370,7 +371,9 @@
       const items = Array.isArray(order.items) ? order.items : [];
       const payment = order.payment_method === "mercadopago" ? "Mercado Pago" : order.payment_method === "transfer" ? "Transferencia" : "Cotización";
       const delivery = order.delivery_method === "pickup" ? "Recoge en tienda" : `Envío por cotizar${order.delivery_address ? ` · ${order.delivery_address}` : ""}`;
-      const metadata = order.metadata || {};
+      let metadata = order.metadata || {};
+      if (typeof metadata === "string") { try { metadata = JSON.parse(metadata) || {}; } catch (_) { metadata = {}; } }
+      const originalSubtotal = Number(metadata.original_subtotal || order.subtotal || order.total || 0);
       const automaticDiscount = Number(metadata.automatic_discount || 0);
       const couponDiscount = Number(metadata.coupon_discount || 0);
       const message = encodeURIComponent(`Hola ${order.customer_name}, te contactamos de Fantasmas Biker's Shop por tu pedido ${order.order_number}.`);
@@ -379,7 +382,7 @@
         <div class="order-customer"><b>${escapeHtml(order.customer_name)}</b><span>${escapeHtml(order.customer_phone)}${order.customer_email ? ` · ${escapeHtml(order.customer_email)}` : ""}</span><small>${escapeHtml(delivery)}</small></div>
         <div class="order-items">${items.map((item) => `<p><span>${Number(item.quantity) || 1} × ${escapeHtml(item.name)}</span><b>${money(Number(item.unit_price || 0) * Number(item.quantity || 1))}</b></p>`).join("")}</div>
         ${order.customer_notes ? `<p class="order-notes"><b>Notas:</b> ${escapeHtml(order.customer_notes)}</p>` : ""}
-        ${(automaticDiscount > 0 || couponDiscount > 0) ? `<div class="order-discounts">${automaticDiscount > 0 ? `<span>Oferta automática <b>−${money(automaticDiscount)}</b></span>` : ""}${couponDiscount > 0 ? `<span>Cupón ${escapeHtml(metadata.coupon_code || "")} <b>−${money(couponDiscount)}</b></span>` : ""}</div>` : ""}
+        <div class="order-discounts"><span>Subtotal original <b>${money(originalSubtotal)}</b></span>${automaticDiscount > 0 ? `<span>Oferta automática <b>−${money(automaticDiscount)}</b></span>` : ""}${couponDiscount > 0 ? `<span>Cupón ${escapeHtml(metadata.coupon_code || "")} <b>−${money(couponDiscount)}</b></span>` : ""}</div>
         <div class="order-total"><span>${escapeHtml(payment)}${order.mp_payment_status ? ` · ${escapeHtml(order.mp_payment_status)}` : ""}</span><strong>${money(order.total)}</strong></div>
         <div class="order-actions">
           <a href="https://wa.me/52${escapeHtml(String(order.customer_phone).replace(/\D/g, "").replace(/^52(?=\d{10}$)/, ""))}?text=${message}" target="_blank">WhatsApp</a>
@@ -444,6 +447,47 @@
     refreshPromotionFields();
     $("#promotionStatus").textContent = "";
     $("#promotionDialog").showModal();
+  }
+
+  function renderBulkProductQueue() {
+    const target = $("#bulkImageQueue");
+    const save = $("#saveBulkProductsButton");
+    if (!target || !save) return;
+    target.innerHTML = bulkProductDrafts.map((draft, index) => `<article class="bulk-product-draft" data-bulk-index="${index}">
+      <img src="${draft.preview}" alt="Vista previa">
+      <div class="bulk-product-fields"><label>Nombre<input data-bulk-field="name" value="${escapeHtml(draft.name)}" maxlength="120"></label><label>Precio<input data-bulk-field="price" type="number" min="0" step="0.01" value="${draft.price}"></label><label>Categoría<input data-bulk-field="category" list="categoryOptions" value="${escapeHtml(draft.category)}" maxlength="60"></label></div>
+      <button type="button" class="delete" data-remove-bulk="${index}" aria-label="Quitar imagen">×</button>
+    </article>`).join("");
+    save.disabled = !bulkProductDrafts.length;
+    save.textContent = bulkProductDrafts.length ? `Guardar ${bulkProductDrafts.length} productos` : "Guardar productos seleccionados";
+  }
+
+  function addBulkProductImages(files) {
+    const selected = [...files].filter((file) => file.type.startsWith("image/")).slice(0, 69);
+    if (!selected.length) return;
+    bulkProductDrafts.forEach((draft) => URL.revokeObjectURL(draft.preview));
+    bulkProductDrafts = selected.map((file) => ({ file, preview: URL.createObjectURL(file), name: file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "), price: "", category: "General" }));
+    $("#bulkProductsStatus").textContent = selected.length < files.length ? "Se tomaron las primeras 69 imágenes." : "";
+    renderBulkProductQueue();
+  }
+
+  async function saveBulkProducts() {
+    if (!bulkProductDrafts.length) return;
+    const status = $("#bulkProductsStatus");
+    const button = $("#saveBulkProductsButton");
+    if (bulkProductDrafts.some((draft) => !draft.name.trim() || draft.price === "" || Number(draft.price) < 0)) return void (status.textContent = "Completa nombre y precio en todas las tarjetas.");
+    if (!confirm(`Se crearán ${bulkProductDrafts.length} productos con sus imágenes. ¿Continuar?`)) return;
+    button.disabled = true; status.textContent = "Subiendo imágenes y guardando productos…";
+    try {
+      for (const draft of bulkProductDrafts) {
+        const uploaded = await uploadImage(draft.file, "products");
+        const { error } = await client.from("shop_products").insert({ name: draft.name.trim(), category: draft.category.trim() || "General", description: "", price: Number(draft.price), image_url: uploaded.url, image_path: uploaded.path, active: true, featured: false, online_sale: true, sort_order: 0, updated_at: new Date().toISOString() });
+        if (error) throw error;
+      }
+      bulkProductDrafts.forEach((draft) => URL.revokeObjectURL(draft.preview));
+      bulkProductDrafts = []; $("#bulkProductImages").value = ""; renderBulkProductQueue(); await loadProducts(); updateStats(); status.textContent = "Productos guardados correctamente."; toast("Carga rápida completada.");
+    } catch (error) { status.textContent = `No se pudo completar la carga: ${error.message}`; }
+    finally { button.disabled = !bulkProductDrafts.length; }
   }
 
   async function uploadImage(file, folder) {
@@ -531,7 +575,7 @@
       if (error) throw error;
       if (kind !== "code" && uploaded && form.elements.current_image_path.value) await removeImage(form.elements.current_image_path.value);
       $("#promotionDialog").close(); await loadPromotions(); updateStats(); toast("Promoción guardada correctamente.");
-    } catch (error) { status.textContent = error.message; }
+    } catch (error) { status.textContent = `No se pudo guardar: ${error.message}. Si falta la tabla o columnas de promociones, ejecuta database_promotions_stickers_v14.sql en Supabase.`; }
   });
 
   $("#settingsForm").addEventListener("submit", async (event) => {
@@ -732,6 +776,10 @@
     } catch (error) { toast(error.message, true); }
     event.target.value = "";
   });
+  $("#bulkProductImages").addEventListener("change", (event) => { addBulkProductImages(event.target.files); });
+  $("#saveBulkProductsButton").addEventListener("click", saveBulkProducts);
+  $("#bulkImageQueue").addEventListener("input", (event) => { const card = event.target.closest("[data-bulk-index]"); if (!card) return; const draft = bulkProductDrafts[Number(card.dataset.bulkIndex)]; if (draft) draft[event.target.dataset.bulkField] = event.target.value; });
+  $("#bulkImageQueue").addEventListener("click", (event) => { const button = event.target.closest("[data-remove-bulk]"); if (!button) return; const index = Number(button.dataset.removeBulk); URL.revokeObjectURL(bulkProductDrafts[index]?.preview); bulkProductDrafts.splice(index, 1); renderBulkProductQueue(); });
   $("#newPromotionButton").addEventListener("click", () => openPromotion());
   $("#promotionForm").elements.promotion_kind.addEventListener("change", refreshPromotionFields);
   $("#promotionForm").elements.scope.addEventListener("change", refreshPromotionFields);
