@@ -472,13 +472,14 @@
     if (!bulkProductDrafts.length) return;
     const status = $("#bulkProductsStatus");
     const button = $("#analyzeBulkProductsButton");
-    button.disabled = true; status.textContent = "Analizando imágenes con Ollama local…";
+    const model = $("#ollamaVisionModel")?.value.trim() || "llama3.2-vision";
+    button.disabled = true; status.textContent = `Conectando con Ollama (${model})…`;
     try {
       for (let index = 0; index < bulkProductDrafts.length; index += 1) {
         const draft = bulkProductDrafts[index];
         status.textContent = `Analizando imagen ${index + 1} de ${bulkProductDrafts.length}…`;
-        const response = await fetch("http://localhost:11434/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "llama3.2-vision", stream: false, format: "json", images: [await imageAsBase64(draft.file)], prompt: "Analiza esta foto de producto para una tienda biker mexicana. Devuelve solo JSON válido con las claves name, category y description. Usa español. El nombre debe ser corto y específico; no inventes marca, talla, material o precio si no son visibles. Si no puedes identificarlo con seguridad, usa un nombre descriptivo prudente y category General." }) });
-        if (!response.ok) throw new Error("Ollama no respondió");
+        const response = await fetch("http://127.0.0.1:11434/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, stream: false, format: "json", images: [await imageAsBase64(draft.file)], prompt: "Analiza esta foto de producto para una tienda biker mexicana. Devuelve solo JSON válido con las claves name, category y description. Usa español. El nombre debe ser corto y específico; no inventes marca, talla, material o precio si no son visibles. Si no puedes identificarlo con seguridad, usa un nombre descriptivo prudente y category General." }) });
+        if (!response.ok) { const detail = await response.text(); throw new Error(detail || `Ollama respondió ${response.status}`); }
         const result = await response.json();
         const suggestion = JSON.parse(result.response || "{}");
         if (suggestion.name) draft.name = String(suggestion.name).trim();
@@ -487,7 +488,7 @@
         renderBulkProductQueue();
       }
       status.textContent = "Sugerencias listas. Revísalas antes de guardar.";
-    } catch (error) { status.textContent = "No se pudo usar Ollama. Instala el modelo llama3.2-vision o continúa editando manualmente."; }
+    } catch (error) { status.textContent = `No se pudo conectar con Ollama: ${error.message || "revisa que esté iniciado y permita conexiones del navegador"}`; }
     finally { button.disabled = !bulkProductDrafts.length; }
   }
 
