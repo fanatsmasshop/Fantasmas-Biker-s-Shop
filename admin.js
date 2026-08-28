@@ -370,12 +370,16 @@
       const items = Array.isArray(order.items) ? order.items : [];
       const payment = order.payment_method === "mercadopago" ? "Mercado Pago" : order.payment_method === "transfer" ? "Transferencia" : "Cotización";
       const delivery = order.delivery_method === "pickup" ? "Recoge en tienda" : `Envío por cotizar${order.delivery_address ? ` · ${order.delivery_address}` : ""}`;
+      const metadata = order.metadata || {};
+      const automaticDiscount = Number(metadata.automatic_discount || 0);
+      const couponDiscount = Number(metadata.coupon_discount || 0);
       const message = encodeURIComponent(`Hola ${order.customer_name}, te contactamos de Fantasmas Biker's Shop por tu pedido ${order.order_number}.`);
       return `<article class="order-card">
         <div class="order-card-head"><div><small>${new Date(order.created_at).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small><h3>${escapeHtml(order.order_number)}</h3></div><span class="order-status status-${escapeHtml(order.status)}">${escapeHtml(visibleOrderStatus(order))}</span></div>
         <div class="order-customer"><b>${escapeHtml(order.customer_name)}</b><span>${escapeHtml(order.customer_phone)}${order.customer_email ? ` · ${escapeHtml(order.customer_email)}` : ""}</span><small>${escapeHtml(delivery)}</small></div>
         <div class="order-items">${items.map((item) => `<p><span>${Number(item.quantity) || 1} × ${escapeHtml(item.name)}</span><b>${money(Number(item.unit_price || 0) * Number(item.quantity || 1))}</b></p>`).join("")}</div>
         ${order.customer_notes ? `<p class="order-notes"><b>Notas:</b> ${escapeHtml(order.customer_notes)}</p>` : ""}
+        ${(automaticDiscount > 0 || couponDiscount > 0) ? `<div class="order-discounts">${automaticDiscount > 0 ? `<span>Oferta automática <b>−${money(automaticDiscount)}</b></span>` : ""}${couponDiscount > 0 ? `<span>Cupón ${escapeHtml(metadata.coupon_code || "")} <b>−${money(couponDiscount)}</b></span>` : ""}</div>` : ""}
         <div class="order-total"><span>${escapeHtml(payment)}${order.mp_payment_status ? ` · ${escapeHtml(order.mp_payment_status)}` : ""}</span><strong>${money(order.total)}</strong></div>
         <div class="order-actions">
           <a href="https://wa.me/52${escapeHtml(String(order.customer_phone).replace(/\D/g, "").replace(/^52(?=\d{10}$)/, ""))}?text=${message}" target="_blank">WhatsApp</a>

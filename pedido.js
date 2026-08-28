@@ -105,6 +105,15 @@
         ? "Recoger en tienda"
         : "Envío por cotizar";
     $("#resultPayment").textContent = paymentMethodLabel(order);
+    const originalSubtotal = Number(order.original_subtotal ?? order.subtotal ?? 0);
+    const automaticDiscount = Number(order.automatic_discount ?? 0);
+    const couponDiscount = Number(order.coupon_discount ?? 0);
+    $("#resultSubtotal").textContent = money(originalSubtotal);
+    $("#resultAutomaticDiscountRow").hidden = automaticDiscount <= 0;
+    $("#resultAutomaticDiscount").textContent = `−${money(automaticDiscount)}`;
+    $("#resultCouponRow").hidden = couponDiscount <= 0;
+    $("#resultCouponLabel").textContent = order.coupon_code ? `Cupón ${order.coupon_code}` : "Cupón";
+    $("#resultCouponDiscount").textContent = `−${money(couponDiscount)}`;
     $("#resultTotal").textContent = money(order.total);
     $("#resultUpdated").textContent =
       `Última actualización: ${new Date(order.updated_at).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" })}`;

@@ -297,6 +297,8 @@ body {
   color: var(--pink);
   font-size: 23px;
 }
+.detail-summary .discount-row { color: var(--green); }
+.detail-summary .discount-row b { color: var(--green); }
 .updated-at {
   margin: 22px 0;
   color: #777b84;
