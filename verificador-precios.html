@@ -14,10 +14,10 @@
       <div class="checker-actions"><button type="button" id="scanButton">▣ Escanear con cámara</button><label>Actualizar productos<input id="csvInput" type="file" accept=".csv,text/csv"></label></div>
       <p class="checker-status" id="checkerStatus">Cargando productos de Aronium…</p>
       <div class="camera-box" id="cameraBox" hidden><video id="cameraVideo" playsinline muted></video><div class="scan-frame"></div><button type="button" id="stopScanButton">Detener cámara</button></div>
-      <section class="price-result" id="priceResult" hidden><small>PRODUCTO ENCONTRADO</small><h2 id="resultName"></h2><p><span>Código</span><b id="resultCode"></b></p><div class="price-line"><span>Precio</span><strong id="resultPrice"></strong></div></section>
+      <section class="price-result" id="priceResult" hidden><small>PRODUCTO ENCONTRADO</small><h2 id="resultName"></h2><p><span>Código</span><b id="resultCode"></b></p><div class="price-line"><span>Precio de lista</span><strong id="resultOriginalPrice"></strong></div><div class="price-line discount-line" id="resultDiscountRow" hidden><span>Descuento vigente</span><strong id="resultDiscount"></strong></div><div class="price-line final-price"><span>Precio final</span><strong id="resultPrice"></strong></div><p class="promotion-note" id="resultPromotionNote" hidden></p></section>
       <section class="not-found" id="notFound" hidden>No encontramos ese código. Verifica que esté escrito completo.</section>
     </section>
   </main>
-  <script src="verificador-precios.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><script src="verificador-precios.js?v=15"></script>
 </body>
 </html>
