@@ -1,0 +1,40 @@
+FANTASMAS BIKER'S SHOP — HOTFIX URGENTE 31-08-2026
+
+SUBIR/REEMPLAZAR ESTOS ARCHIVOS EN LA RAIZ DEL PROYECTO:
+- admin.html
+- admin.js
+- asistente-fantasma.css
+- asistente-fantasma.js
+- index.html
+- public-data.js
+- verificador-precios.css
+- verificador-precios.html
+- verificador-precios.js
+
+WORKER DE CHECKOUT:
+- cloudflare-mercadopago-worker.js
+  Si tu Worker de Mercado Pago se despliega por separado de Cloudflare Pages,
+  actualiza tambien el codigo del Worker con este archivo.
+
+CAMBIOS PRINCIPALES:
+1. Tienda, verificador y Worker usan vigencia real de promociones (inicio/fin).
+2. El catalogo ya no muestra ni aplica promociones futuras o vencidas.
+3. Orden determinista de promociones para evitar precios distintos al acumular descuentos.
+4. El catalogo muestra el porcentaje efectivo exacto (ej. -30% DTO).
+5. El verificador refresca promociones cada 60 s y muestra importe + porcentaje exactos.
+6. El verificador solo aplica automaticamente promociones con scope = all (Toda la tienda).
+7. Mejor reconocimiento de codigo/SKU del CSV de Aronium y controles moviles estables.
+8. Asistente Fantasma: busqueda por palabras relevantes en vez de frase literal.
+9. Asistente Fantasma y WhatsApp ya no quedan encimados; mejorado movil.
+10. Panel de promociones muestra VIGENTE / PROGRAMADA / FINALIZADA / INACTIVA.
+11. Validacion de fechas de promociones para impedir fin anterior al inicio.
+
+NO SE MODIFICA:
+- products.csv
+- credenciales Supabase
+- base de datos
+- catalogo existente
+- imagenes
+- pedidos
+
+Despues de publicar, hacer recarga forzada (Ctrl+F5) una vez.

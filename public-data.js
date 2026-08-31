@@ -54,8 +54,16 @@
     return ` href="${escapeHtml(link)}"${/^https?:\/\//i.test(link) ? ' target="_blank" rel="noopener noreferrer"' : ""}`;
   };
   const setHref = (selector, value) => applyHref(document.querySelector(selector), value);
+  function activeNow(item, now = Date.now()) {
+    if (!item || item.active === false) return false;
+    const starts = item.starts_at ? Date.parse(item.starts_at) : null;
+    const ends = item.ends_at ? Date.parse(item.ends_at) : null;
+    if (item.starts_at && !Number.isFinite(starts)) return false;
+    if (item.ends_at && !Number.isFinite(ends)) return false;
+    return (starts === null || starts <= now) && (ends === null || ends >= now);
+  }
   function promotionMatchesProduct(promo, product) {
-    if (!promo.discount_value) return false;
+    if (!activeNow(promo) || !Number(promo.discount_value)) return false;
     if (promo.scope === "products") return (promo.product_ids || []).includes(product.id);
     if (promo.scope === "categories") return (promo.category_names || []).includes(product.category);
     return true;
@@ -66,11 +74,15 @@
     const applied = [];
     automaticPromotions.forEach((promo) => {
       if (!promotionMatchesProduct(promo, product)) return;
-      const candidate = promo.discount_type === "percentage" ? price * (1 - Number(promo.discount_value) / 100) : price - Number(promo.discount_value);
+      if (Number(promo.minimum_purchase || 0) > original) return;
+      const value = Number(promo.discount_value || 0);
+      const candidate = promo.discount_type === "percentage" ? price * (1 - Math.min(100, value) / 100) : price - value;
       price = Math.max(0, candidate);
-      applied.push(promo.title);
+      applied.push(promo.title || "Promoción vigente");
     });
-    return { original, price: Math.round(price * 100) / 100, applied };
+    price = Math.round(price * 100) / 100;
+    const discountPercent = original > 0 && price < original ? Math.round(((original - price) / original) * 1000) / 10 : 0;
+    return { original, price, applied, discountPercent };
   }
 
   function renderProducts() {
@@ -100,7 +112,7 @@
           <small>${escapeHtml(product.category)}</small>
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description)}</p>
-          <div class="producto-precio">${offer.price < offer.original ? `<del>${money(offer.original)}</del>` : product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(offer.price)}</strong>${offer.applied.length ? '<span class="product-offer-badge">OFERTA</span>' : ""}</div>
+          <div class="producto-precio">${offer.price < offer.original ? `<del>${money(offer.original)}</del>` : product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(offer.price)}</strong>${offer.applied.length ? `<span class="product-offer-badge">−${Number.isInteger(offer.discountPercent) ? offer.discountPercent.toFixed(0) : offer.discountPercent.toFixed(1)}% DTO</span>` : ""}</div>
           ${canBuy ? `<button class="product-add-cart" type="button" data-add-to-cart="${product.id}">Agregar al carrito</button>` : `<a href="https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(`Hola, quiero información del producto: ${product.name}`)}" target="_blank">Consultar disponibilidad →</a>`}
           ${stockNote ? `<small class="product-stock-note">${escapeHtml(stockNote)}</small>` : ""}
         </div>
@@ -195,11 +207,13 @@
     const section = document.querySelector("#promocionesPublicas");
     if (!target || !section) return;
     const { data, error } = await client.from("shop_promotions").select("*").eq("active", true).order("sort_order").order("created_at", { ascending: false });
-    if (error || !data || data.length === 0) return;
-    automaticPromotions = data.filter((promo) => promo.discount_value);
+    if (error || !data) return;
+    const currentPromotions = data.filter(activeNow);
+    automaticPromotions = currentPromotions.filter((promo) => Number(promo.discount_value) > 0);
     window.FANTASMAS_AUTOMATIC_PROMOTIONS = automaticPromotions;
     if (products.length) { renderProducts(); window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products })); }
-    target.innerHTML = data.map((promo) => `
+    if (!currentPromotions.length) { target.innerHTML = ""; section.hidden = true; return; }
+    target.innerHTML = currentPromotions.map((promo) => `
       <article class="promocion-publica ${promo.image_url ? "con-imagen" : ""}" ${promo.image_url ? `style="background-image:linear-gradient(90deg,#08090dec,#08090d99),url('${escapeHtml(promo.image_url)}')"` : ""}>
         <span>${escapeHtml(promo.badge)}</span><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.subtitle)}</p><a${linkAttributes(promo.button_url)}>${escapeHtml(promo.button_text)} →</a>
       </article>`).join("");

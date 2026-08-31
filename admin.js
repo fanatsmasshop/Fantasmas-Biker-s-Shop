@@ -303,12 +303,22 @@
     URL.revokeObjectURL(link.href);
   }
 
+  function promotionRuntimeStatus(promo) {
+    if (!promo.active) return { label: "INACTIVA", className: "inactive" };
+    const now = Date.now();
+    const starts = promo.starts_at ? Date.parse(promo.starts_at) : null;
+    const ends = promo.ends_at ? Date.parse(promo.ends_at) : null;
+    if (starts && starts > now) return { label: "PROGRAMADA", className: "featured" };
+    if (ends && ends < now) return { label: "FINALIZADA", className: "inactive" };
+    return { label: "VIGENTE", className: "active" };
+  }
+
   function renderPromotions() {
     const rows = [...promotions.map((item) => ({ ...item, promotion_kind: item.discount_value ? "automatic" : "display" })), ...discountCodes.map((item) => ({ ...item, promotion_kind: "code", badge: `CÓDIGO ${item.code}`, sort_order: 0 }))];
     $("#promotionsList").innerHTML = rows.length ? rows.map((promo) => `
       <article class="list-card">
         <div class="list-image">${promo.image_url ? `<img src="${escapeHtml(promo.image_url)}" alt="">` : "⚡"}</div>
-        <div class="list-main"><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.badge || "PROMOCIÓN")}${promo.discount_value ? ` · ${promo.discount_type === "percentage" ? `${promo.discount_value}%` : money(promo.discount_value)}` : ""}${promo.ends_at ? ` · Termina ${new Date(promo.ends_at).toLocaleDateString("es-MX")}` : ""}</p><div class="badges"><span class="badge ${promo.active ? "active" : "inactive"}">${promo.active ? "ACTIVA" : "INACTIVA"}</span><span class="badge">${promo.promotion_kind === "code" ? `${promo.uses_count}/${promo.max_uses || "∞"} usos` : promo.promotion_kind === "automatic" ? "AUTOMÁTICA" : "ANUNCIO"}</span></div></div>
+        <div class="list-main"><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.badge || "PROMOCIÓN")}${promo.discount_value ? ` · ${promo.discount_type === "percentage" ? `${promo.discount_value}%` : money(promo.discount_value)}` : ""}${promo.ends_at ? ` · Termina ${new Date(promo.ends_at).toLocaleDateString("es-MX")}` : ""}</p><div class="badges">${(() => { const state = promotionRuntimeStatus(promo); return `<span class="badge ${state.className}">${state.label}</span>`; })()}<span class="badge">${promo.promotion_kind === "code" ? `${promo.uses_count}/${promo.max_uses || "∞"} usos` : promo.promotion_kind === "automatic" ? "AUTOMÁTICA" : "ANUNCIO"}</span></div></div>
         <div class="list-actions"><button data-edit-promotion="${promo.id}" data-promotion-kind="${promo.promotion_kind}">Editar</button><button data-toggle-promotion="${promo.id}" data-promotion-kind="${promo.promotion_kind}">${promo.active ? "Desactivar" : "Activar"}</button><button class="delete" data-delete-promotion="${promo.id}" data-promotion-kind="${promo.promotion_kind}">Eliminar</button></div>
       </article>`).join("") : '<div class="empty">Aún no has creado promociones.</div>';
   }
@@ -586,6 +596,8 @@
       };
       if (kind !== "display" && (!Number.isFinite(commonRule.discount_value) || commonRule.discount_value <= 0)) throw new Error("Escribe un descuento mayor a cero.");
       if (commonRule.discount_type === "percentage" && commonRule.discount_value > 100) throw new Error("El porcentaje no puede ser mayor a 100%.");
+      if (commonRule.minimum_purchase < 0) throw new Error("La compra mínima no puede ser negativa.");
+      if (commonRule.starts_at && commonRule.ends_at && Date.parse(commonRule.ends_at) <= Date.parse(commonRule.starts_at)) throw new Error("La fecha de término debe ser posterior al inicio.");
       const payload = {
         title: form.elements.title.value.trim(), subtitle: form.elements.subtitle.value.trim(), badge: form.elements.badge.value.trim(),
         button_text: form.elements.button_text.value.trim(), button_url: form.elements.button_url.value.trim(),

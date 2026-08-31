@@ -189,7 +189,7 @@ async function canonicalOrder(env, payload) {
   const products = ids.length ? await supabaseRequest(env, `shop_products?select=id,name,category,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`) : [];
   if (!Array.isArray(products) || products.length !== ids.length) throw new Error("Uno de los productos ya no está disponible");
 
-  const promotions = products.length ? await supabaseRequest(env, "shop_promotions?select=id,title,discount_type,discount_value,scope,product_ids,category_names,minimum_purchase,active,starts_at,ends_at&active=eq.true&discount_value=not.is.null") : [];
+  const promotions = products.length ? await supabaseRequest(env, "shop_promotions?select=id,title,discount_type,discount_value,scope,product_ids,category_names,minimum_purchase,active,starts_at,ends_at,sort_order,created_at&active=eq.true&discount_value=not.is.null&order=sort_order.asc,created_at.desc") : [];
   const activePromotions = Array.isArray(promotions) ? promotions.filter((promo) => activeNow(promo)) : [];
   const items = products.map((product) => {
     const quantity = quantities.get(product.id);
