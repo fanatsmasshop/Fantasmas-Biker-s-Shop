@@ -1,0 +1,25 @@
+FANTASMAS BIKER'S SHOP · REPARACIÓN VISUAL / FLUIDEZ
+31-08-2026
+
+Este parche se aplica ENCIMA de Fantasmas-Shop-ACTUALIZACION-TOTAL-20260831.
+NO ejecutar SQL. NO modifica Mercado Pago ni Supabase.
+
+Subir estos archivos a la raíz:
+- index.html
+- shop-modern.css
+- shop-modern.js
+
+Corrige sin eliminar funciones:
+- mezcla visual entre componentes modernos y estilos heredados;
+- hero excesivamente alto y rígido;
+- tarjetas cuadradas/antiguas;
+- espacios y secciones cortadas;
+- catálogo y filtros poco fluidos;
+- responsive móvil;
+- contenido de rifas que todavía decía aniversario;
+- contador y bloque de aniversario vencidos;
+- rifas sin contenido que dejaban huecos;
+- bloque de Aliados con mensaje de “próximamente” obsoleto;
+- transiciones suaves y consistentes entre secciones.
+
+Después de publicar: Ctrl+F5 una vez.
