@@ -49,8 +49,8 @@
     try{
       const config=window.FANTASMAS_SUPABASE;if(!config?.url||!config?.publishableKey||!window.supabase){promotions=[];return}
       const client=window.supabase.createClient(config.url,config.publishableKey);
-      const {data,error}=await client.from("shop_promotions").select("title,discount_type,discount_value,scope,minimum_purchase,active,starts_at,ends_at,sort_order,created_at").eq("active",true).eq("scope","all").not("discount_value","is",null).order("sort_order").order("created_at",{ascending:false});
-      if(error)throw error;promotions=(data||[]).filter(activeNow);promotionsLoadedAt=Date.now();
+      const {data,error}=await client.from("shop_promotions").select("id,title,discount_type,discount_value,scope,minimum_purchase,active,starts_at,ends_at,sort_order,created_at").eq("active",true).eq("scope","all").not("discount_value","is",null).order("sort_order").order("created_at",{ascending:false});
+      if(error)throw error;promotions=(data||[]).filter(activeNow).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||String(a.created_at||"").localeCompare(String(b.created_at||""))||String(a.id||"").localeCompare(String(b.id||"")));promotionsLoadedAt=Date.now();
     }catch(_){promotions=[];promotionsLoadedAt=Date.now()}
   }
   async function refreshPromotionsIfStale(){if(Date.now()-promotionsLoadedAt>60000)await loadPromotions()}

@@ -30,8 +30,9 @@
     <button class="menu-boton" id="menuBoton" aria-label="Abrir menú">☰</button>
 
     <nav id="menu">
+      <a href="#productosPublicos">Catálogo</a>
+      <a href="#promocionesPublicas">Promociones</a>
       <a href="#rifas" data-setting-text="nav_raffles_text" data-setting-href="nav_raffles_url">Rifas</a>
-      <a href="#tienda" data-setting-text="nav_store_text" data-setting-href="nav_store_url">Tienda</a>
       <a href="#beneficios" data-setting-text="nav_rewards_text" data-setting-href="nav_rewards_url">Beneficios</a>
       <a href="#aliados" data-setting-text="nav_allies_text" data-setting-href="nav_allies_url">Aliados</a>
       <a href="pedido.html">Mi pedido</a>
@@ -45,11 +46,11 @@
     <section class="portada editable-section" id="inicio" data-section-key="hero">
       <div class="portada-contenido">
         <p class="etiqueta" id="heroEyebrow" data-setting-text="hero_eyebrow">SITIO OFICIAL · CD. AZTECA, ECATEPEC</p>
-        <h1><span class="hero-title" id="heroTitle" data-setting-text="hero_title">RODAMOS JUNTOS.</span><br><span id="heroHighlight" data-setting-text="hero_highlight">CELEBRAMOS EN GRANDE.</span></h1>
-        <p class="introduccion" id="heroIntro" data-setting-text="hero_intro">Accesorios biker, artículos exclusivos y personalización con carácter. Este 24 de agosto celebramos nuestro primer aniversario contigo.</p>
+        <h1><span class="hero-title" id="heroTitle" data-setting-text="hero_title">TODO PARA TU RUTA.</span><br><span id="heroHighlight" data-setting-text="hero_highlight">EN UN SOLO LUGAR.</span></h1>
+        <p class="introduccion" id="heroIntro" data-setting-text="hero_intro">Equipo biker, accesorios, ropa alternativa y personalizados en Cd. Azteca. Busca, compara y compra directamente desde nuestra tienda.</p>
         <div class="acciones">
-          <a class="boton boton-rosa" id="mainCta" href="#rifas" data-setting-text="main_cta_text" data-setting-href="main_cta_url">Ver rifas</a>
-          <a class="boton boton-oscuro" id="catalogCta" href="https://linktr.ee/FANTASMASBIKERSCDAZTECA" target="_blank" data-setting-text="catalog_cta_text" data-setting-href="catalog_cta_url">Ver catálogo</a>
+          <a class="boton boton-rosa" id="mainCta" href="#productosPublicos" data-setting-text="main_cta_text" data-setting-href="main_cta_url">Ver productos</a>
+          <a class="boton boton-oscuro" id="catalogCta" href="verificador-precios.html" data-setting-text="catalog_cta_text" data-setting-href="catalog_cta_url">Verificar precio</a>
         </div>
         <div class="datos-evento" id="countdown" aria-label="Cuenta regresiva">
           <div><strong id="countdownDays">00</strong><span>Días</span></div>
@@ -64,7 +65,7 @@
     </section>
 
     <div class="franja editable-section ticker ticker-scroll ticker-blue" id="anuncioAdministrable" data-section-key="announcement" aria-label="Anuncios de la tienda">
-      <div class="ticker-track"><span class="ticker-item">ANIVERSARIO 2026</span><i>✦</i><span class="ticker-item">PREMIOS Y PROMOCIONES</span><i>✦</i><span class="ticker-item">COMUNIDAD BIKER</span><i>✦</i><span class="ticker-item">FANTASMAS BIKER'S SHOP</span></div>
+      <div class="ticker-track"><span class="ticker-item">EQUIPO BIKER</span><i>✦</i><span class="ticker-item">PROMOCIONES VIGENTES</span><i>✦</i><span class="ticker-item">ENTREGAS Y ENVÍOS</span><i>✦</i><span class="ticker-item">FANTASMAS BIKER'S SHOP</span></div>
     </div>
 
     <section class="promociones-publicas editable-section" id="promocionesPublicas" data-section-key="promotions" hidden>
@@ -74,6 +75,17 @@
       </div>
       <div class="promociones-grid" id="promocionesDinamicas"></div>
     </section>
+
+    <section class="productos-publicos editable-section" id="productosPublicos" data-section-key="products" hidden>
+      <div class="titulo-seccion">
+        <div><p class="etiqueta" data-setting-text="products_eyebrow">CATÁLOGO ACTUAL</p><h2 data-section-title>PRODUCTOS<br>DISPONIBLES.</h2></div>
+        <p data-section-subtitle>Modelos publicados desde nuestro panel oficial. Las existencias pueden cambiar; confirma por WhatsApp.</p>
+      </div>
+      <div class="catalog-toolbar"><input id="catalogSearch" type="search" placeholder="Buscar en el catálogo..." aria-label="Buscar productos" data-setting-placeholder="products_search_placeholder"><div class="category-filters" id="categoryFilters"></div></div>
+      <div class="productos-grid" id="productosDinamicos"></div>
+      <div class="catalog-load-more" id="catalogLoadMore" aria-live="polite"></div>
+    </section>
+
 
     <section class="seccion editable-section" id="rifas" data-section-key="raffles">
       <div class="titulo-seccion">
@@ -120,16 +132,6 @@
         <article><span>☠</span><h3>Estilo Fantasmas</h3><p>Gorras, playeras, sudaderas, hebillas, cadenas, anillos y artículos exclusivos.</p></article>
         <article><span>⚡</span><h3>Personalizados</h3><p>Sublimación, DTF, vinil, diseño e impresión para tus ideas y eventos.</p></article>
       </div>
-    </section>
-
-    <section class="productos-publicos editable-section" id="productosPublicos" data-section-key="products" hidden>
-      <div class="titulo-seccion">
-        <div><p class="etiqueta" data-setting-text="products_eyebrow">CATÁLOGO ACTUAL</p><h2 data-section-title>PRODUCTOS<br>DISPONIBLES.</h2></div>
-        <p data-section-subtitle>Modelos publicados desde nuestro panel oficial. Las existencias pueden cambiar; confirma por WhatsApp.</p>
-      </div>
-      <div class="catalog-toolbar"><input id="catalogSearch" type="search" placeholder="Buscar en el catálogo..." aria-label="Buscar productos" data-setting-placeholder="products_search_placeholder"><div class="category-filters" id="categoryFilters"></div></div>
-      <div class="productos-grid" id="productosDinamicos"></div>
-      <div class="catalog-load-more" id="catalogLoadMore" aria-live="polite"></div>
     </section>
 
     <section class="eventos-publicos editable-section" id="eventosPublicos" data-section-key="events" hidden>
@@ -255,7 +257,7 @@
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
   <script src="site-editor.js?v=14"></script>
-  <script src="public-data.js?v=15"></script>
+  <script src="public-data.js?v=17"></script>
   <script src="shop-cart.js?v=14"></script>
   <script src="asistente-fantasma.js?v=2"></script>
 </body>

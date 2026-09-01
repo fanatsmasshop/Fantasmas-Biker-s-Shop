@@ -1,0 +1,56 @@
+FANTASMAS BIKER'S SHOP — PARCHE CRÍTICO 2026-08-31
+==================================================
+
+ESTADO ACTUAL
+✓ La migración database_product_reservations_v15.sql YA FUE APLICADA directamente al Supabase de producción de Fantasmas Biker's Shop el 31/08/2026.
+✓ Se verificó la existencia de la tabla shop_product_reservations y los RPC reserve/release/confirm.
+✓ Los JavaScript modificados pasaron validación de sintaxis.
+
+NO VUELVAS A EJECUTAR EL SQL para esta publicación normal. Se incluye únicamente como respaldo/restauración.
+
+LO QUE FALTA PUBLICAR
+
+1) CLOUDFLARE WORKER DE MERCADO PAGO — PRIMERO
+   Sustituye el código del Worker por:
+   cloudflare-mercadopago-worker.js
+
+   El Worker nuevo activa la reserva de inventario ya instalada en Supabase.
+   La reserva dura 20 minutos mientras el cliente completa Mercado Pago.
+   Si el pago se cancela/rechaza o falla la creación de preferencia, la reserva se libera.
+
+2) CLOUDFLARE PAGES / RAÍZ DEL SITIO — SEGUNDO
+   Sube, reemplazando los actuales:
+   index.html
+   public-data.js
+   admin.html
+   admin.js
+   asistente-fantasma.css
+   asistente-fantasma.js
+   verificador-precios.css
+   verificador-precios.html
+   verificador-precios.js
+
+3) PRUEBA RÁPIDA
+   - Haz Ctrl+F5.
+   - El aniversario vencido no debe dominar la página.
+   - Productos deben aparecer arriba, después de promociones.
+   - Una promo futura o vencida no debe modificar precios.
+   - Verificador y checkout deben dar el mismo descuento vigente.
+   - En una última pieza: un checkout la reserva; un segundo checkout no debe poder reservar esa misma unidad.
+
+CAMBIOS CRÍTICOS
+- Hero post-aniversario por defecto: "TODO PARA TU RUTA. EN UN SOLO LUGAR."
+- CTA principal: "Ver productos".
+- CTA secundario: "Verificar precio".
+- Campaña/aniversario vencido se oculta automáticamente si la configuración quedó vieja.
+- Productos pasan por encima de contenido histórico.
+- Promociones se filtran por active + starts_at + ends_at y se ordenan igual en tienda/verificador/checkout.
+- Verificador refresca promociones y mantiene lectura de códigos/SKU de Aronium.
+- Estados de promoción en admin: VIGENTE / PROGRAMADA / FINALIZADA / INACTIVA.
+- Reserva temporal de stock integrada con Mercado Pago a nivel de base de datos.
+
+ARCHIVO SQL
+- database_product_reservations_v15.sql se conserva solo como respaldo de la migración ya aplicada.
+
+IMPORTANTE
+Este paquete contiene únicamente archivos nuevos/modificados y no incluye imágenes, productos ni credenciales.

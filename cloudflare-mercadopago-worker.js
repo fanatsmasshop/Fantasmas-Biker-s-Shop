@@ -189,8 +189,8 @@ async function canonicalOrder(env, payload) {
   const products = ids.length ? await supabaseRequest(env, `shop_products?select=id,name,category,price,image_url,active,online_sale,stock&id=in.(${ids.join(",")})`) : [];
   if (!Array.isArray(products) || products.length !== ids.length) throw new Error("Uno de los productos ya no está disponible");
 
-  const promotions = products.length ? await supabaseRequest(env, "shop_promotions?select=id,title,discount_type,discount_value,scope,product_ids,category_names,minimum_purchase,active,starts_at,ends_at,sort_order,created_at&active=eq.true&discount_value=not.is.null&order=sort_order.asc,created_at.desc") : [];
-  const activePromotions = Array.isArray(promotions) ? promotions.filter((promo) => activeNow(promo)) : [];
+  const promotions = products.length ? await supabaseRequest(env, "shop_promotions?select=id,title,discount_type,discount_value,scope,product_ids,category_names,minimum_purchase,active,starts_at,ends_at,sort_order,created_at&active=eq.true&discount_value=not.is.null") : [];
+  const activePromotions = Array.isArray(promotions) ? promotions.filter((promo) => activeNow(promo)).sort((a,b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.created_at || "").localeCompare(String(b.created_at || "")) || String(a.id || "").localeCompare(String(b.id || ""))) : [];
   const items = products.map((product) => {
     const quantity = quantities.get(product.id);
     const unitPrice = Number(product.price);
@@ -482,7 +482,7 @@ async function createMercadoPagoPreference(request, env, canonical, order) {
     auto_return: "approved",
     expires: true,
     expiration_date_from: new Date().toISOString(),
-    expiration_date_to: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    expiration_date_to: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
     notification_url: `${workerUrl}/webhook`,
     metadata: { order_id: order.id, order_number: order.order_number }
   };
@@ -510,12 +510,14 @@ async function handleCheckout(request, env) {
   }
   const order = await createOrder(env, canonical, "mercadopago");
   try {
+    await supabaseRequest(env, "rpc/reserve_shop_order_products", { method: "POST", body: JSON.stringify({ p_order_id: order.id, p_minutes: 20 }) });
     const payment = await createMercadoPagoPreference(request, env, canonical, order);
     const emailSent = await sendOrderEmail(env, order);
     return response(request, env, { ok: true, order_id: order.id, order_number: order.order_number, email_sent: emailSent, ...payment });
   } catch (error) {
     await patchOrder(env, order.id, { status: "payment_failed" });
     await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: order.id }) }).catch(() => null);
+    await supabaseRequest(env, "rpc/release_shop_order_products", { method: "POST", body: JSON.stringify({ p_order_id: order.id }) }).catch(() => null);
     throw error;
   }
 }
@@ -594,6 +596,7 @@ async function handleAdminOrderStatus(request, env) {
   } else {
     if (nextStatus === "cancelled" && !currentOrder.stock_applied) {
       await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
+      await supabaseRequest(env, "rpc/release_shop_order_products", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) }).catch(() => null);
     }
     await patchOrder(env, orderId, { status: nextStatus });
   }
@@ -612,7 +615,10 @@ async function handleAdminOrderDelete(request, env) {
   const rows = await supabaseRequest(env, `shop_orders?select=id,status,stock_applied&id=eq.${orderId}&limit=1`);
   const order = rows?.[0];
   if (!order) throw new Error("Pedido no encontrado");
-  if (!order.stock_applied) await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) }).catch(() => null);
+  if (!order.stock_applied) {
+    await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) }).catch(() => null);
+    await supabaseRequest(env, "rpc/release_shop_order_products", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) }).catch(() => null);
+  }
   await supabaseRequest(env, `shop_orders?id=eq.${orderId}`, { method: "DELETE", headers: { "Prefer": "return=minimal" } });
   return response(request, env, { ok: true, deleted: orderId });
 }
@@ -661,6 +667,7 @@ async function handleWebhook(request, env) {
     await patchOrder(env, orderId, { status: nextStatus, mp_payment_id: String(payment.id), mp_payment_status: payment.status });
     if (!order.stock_applied && ["rejected", "cancelled"].includes(payment.status)) {
       await supabaseRequest(env, "rpc/release_shop_order_raffles", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) });
+      await supabaseRequest(env, "rpc/release_shop_order_products", { method: "POST", body: JSON.stringify({ p_order_id: orderId }) }).catch(() => null);
     }
   }
   const updatedRows = await supabaseRequest(env, `shop_orders?select=*&id=eq.${orderId}&limit=1`);

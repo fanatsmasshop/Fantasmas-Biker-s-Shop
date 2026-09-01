@@ -55,15 +55,13 @@
   };
   const setHref = (selector, value) => applyHref(document.querySelector(selector), value);
   function activeNow(item, now = Date.now()) {
-    if (!item || item.active === false) return false;
-    const starts = item.starts_at ? Date.parse(item.starts_at) : null;
-    const ends = item.ends_at ? Date.parse(item.ends_at) : null;
-    if (item.starts_at && !Number.isFinite(starts)) return false;
-    if (item.ends_at && !Number.isFinite(ends)) return false;
-    return (starts === null || starts <= now) && (ends === null || ends >= now);
+    return item && item.active !== false && (!item.starts_at || new Date(item.starts_at).getTime() <= now) && (!item.ends_at || new Date(item.ends_at).getTime() >= now);
+  }
+  function sortPromotionRules(list) {
+    return [...(list || [])].sort((a,b) => Number(a.sort_order || 0) - Number(b.sort_order || 0) || String(a.created_at || '').localeCompare(String(b.created_at || '')) || String(a.id || '').localeCompare(String(b.id || '')));
   }
   function promotionMatchesProduct(promo, product) {
-    if (!activeNow(promo) || !Number(promo.discount_value)) return false;
+    if (!promo.discount_value) return false;
     if (promo.scope === "products") return (promo.product_ids || []).includes(product.id);
     if (promo.scope === "categories") return (promo.category_names || []).includes(product.category);
     return true;
@@ -72,17 +70,13 @@
     const original = Number(product.price);
     let price = original;
     const applied = [];
-    automaticPromotions.forEach((promo) => {
-      if (!promotionMatchesProduct(promo, product)) return;
-      if (Number(promo.minimum_purchase || 0) > original) return;
-      const value = Number(promo.discount_value || 0);
-      const candidate = promo.discount_type === "percentage" ? price * (1 - Math.min(100, value) / 100) : price - value;
+    sortPromotionRules(automaticPromotions).forEach((promo) => {
+      if (!activeNow(promo) || !promotionMatchesProduct(promo, product) || original < Number(promo.minimum_purchase || 0)) return;
+      const candidate = promo.discount_type === "percentage" ? price * (1 - Number(promo.discount_value) / 100) : price - Number(promo.discount_value);
       price = Math.max(0, candidate);
-      applied.push(promo.title || "Promoción vigente");
+      applied.push(promo.title);
     });
-    price = Math.round(price * 100) / 100;
-    const discountPercent = original > 0 && price < original ? Math.round(((original - price) / original) * 1000) / 10 : 0;
-    return { original, price, applied, discountPercent };
+    return { original, price: Math.round(price * 100) / 100, applied };
   }
 
   function renderProducts() {
@@ -112,7 +106,7 @@
           <small>${escapeHtml(product.category)}</small>
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description)}</p>
-          <div class="producto-precio">${offer.price < offer.original ? `<del>${money(offer.original)}</del>` : product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(offer.price)}</strong>${offer.applied.length ? `<span class="product-offer-badge">−${Number.isInteger(offer.discountPercent) ? offer.discountPercent.toFixed(0) : offer.discountPercent.toFixed(1)}% DTO</span>` : ""}</div>
+          <div class="producto-precio">${offer.price < offer.original ? `<del>${money(offer.original)}</del>` : product.previous_price ? `<del>${money(product.previous_price)}</del>` : ""}<strong>${money(offer.price)}</strong>${offer.applied.length ? '<span class="product-offer-badge">OFERTA</span>' : ""}</div>
           ${canBuy ? `<button class="product-add-cart" type="button" data-add-to-cart="${product.id}">Agregar al carrito</button>` : `<a href="https://wa.me/${storeWhatsApp}?text=${encodeURIComponent(`Hola, quiero información del producto: ${product.name}`)}" target="_blank">Consultar disponibilidad →</a>`}
           ${stockNote ? `<small class="product-stock-note">${escapeHtml(stockNote)}</small>` : ""}
         </div>
@@ -207,13 +201,12 @@
     const section = document.querySelector("#promocionesPublicas");
     if (!target || !section) return;
     const { data, error } = await client.from("shop_promotions").select("*").eq("active", true).order("sort_order").order("created_at", { ascending: false });
-    if (error || !data) return;
-    const currentPromotions = data.filter(activeNow);
-    automaticPromotions = currentPromotions.filter((promo) => Number(promo.discount_value) > 0);
+    const active = error ? [] : sortPromotionRules((data || []).filter(activeNow));
+    automaticPromotions = active.filter((promo) => Number(promo.discount_value) > 0);
     window.FANTASMAS_AUTOMATIC_PROMOTIONS = automaticPromotions;
     if (products.length) { renderProducts(); window.dispatchEvent(new CustomEvent("fantasmas:products-ready", { detail: products })); }
-    if (!currentPromotions.length) { target.innerHTML = ""; section.hidden = true; return; }
-    target.innerHTML = currentPromotions.map((promo) => `
+    if (!active.length) { target.innerHTML = ""; section.hidden = true; return; }
+    target.innerHTML = active.map((promo) => `
       <article class="promocion-publica ${promo.image_url ? "con-imagen" : ""}" ${promo.image_url ? `style="background-image:linear-gradient(90deg,#08090dec,#08090d99),url('${escapeHtml(promo.image_url)}')"` : ""}>
         <span>${escapeHtml(promo.badge)}</span><h3>${escapeHtml(promo.title)}</h3><p>${escapeHtml(promo.subtitle)}</p><a${linkAttributes(promo.button_url)}>${escapeHtml(promo.button_text)} →</a>
       </article>`).join("");
@@ -317,7 +310,30 @@
     if (!builderPreview) countdownTimer = setInterval(update, 1000);
   }
 
+  function lifecycleSettings(input) {
+    const value = { ...(input || {}) };
+    let source = value.event_datetime || "2026-08-24T11:00:00-06:00";
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(source)) source += ":00-06:00";
+    const eventTime = new Date(source).getTime();
+    if (Number.isFinite(eventTime) && eventTime < Date.now() && !builderPreview) {
+      value.countdown_enabled = "false";
+      const anniversary = document.querySelector('[data-section-key="anniversary"]');
+      if (anniversary) anniversary.hidden = true;
+      if (/24\s+de\s+agosto|aniversario/i.test(String(value.hero_intro || document.querySelector('#heroIntro')?.textContent || ''))) value.hero_intro = 'Equipo biker, accesorios, ropa alternativa y personalizados en Cd. Azteca. Busca, compara y compra directamente desde nuestra tienda.';
+      if (/rifa/i.test(String(value.main_cta_text || ''))) value.main_cta_text = 'Ver productos';
+      if (!value.main_cta_url || value.main_cta_url === '#rifas') value.main_cta_url = '#productosPublicos';
+      if (/linktr\.ee/i.test(String(value.catalog_cta_url || ''))) value.catalog_cta_url = 'verificador-precios.html';
+      if (!value.catalog_cta_text || /cat[aá]logo/i.test(String(value.catalog_cta_text))) value.catalog_cta_text = 'Verificar precio';
+      if (/ANIVERSARIO 2026/i.test(String(value.ticker_phrases || ''))) value.ticker_phrases = 'EQUIPO BIKER|PROMOCIONES VIGENTES|ENTREGAS Y ENVÍOS|FANTASMAS BIKER\'S SHOP';
+    } else if (Number.isFinite(eventTime) && eventTime >= Date.now()) {
+      const anniversary = document.querySelector('[data-section-key="anniversary"]');
+      if (anniversary && canReveal(anniversary)) anniversary.hidden = false;
+    }
+    return value;
+  }
+
   function applyPublicSettings(value) {
+    value = lifecycleSettings(value);
     window.FANTASMAS_STORE_SETTINGS = value || {};
     if (value.whatsapp) storeWhatsApp = whatsappNumber(value.whatsapp);
     applyContentSettings(value);
@@ -365,6 +381,8 @@
 
   (async function initializePublicStore() {
     await loadSettings();
+    await sectionsReady;
+    applyPublicSettings(window.FANTASMAS_STORE_SETTINGS || {});
     await Promise.allSettled([loadProducts(), loadCategories(), loadPromotions(), loadRaffles(), loadEvents()]);
   })();
 })();
