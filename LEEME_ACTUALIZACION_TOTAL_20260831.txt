@@ -1,0 +1,36 @@
+FANTASMAS BIKER'S SHOP — ACTUALIZACIÓN TOTAL 31/08/2026
+=========================================================
+
+ESTADO DE BASE DE DATOS
+- La reserva temporal de inventario (v15) YA FUE APLICADA en Supabase de producción.
+- La analítica de crecimiento (v16) YA FUE APLICADA en Supabase de producción.
+- El hardening de permisos RPC (v17) YA FUE APLICADO.
+- Los SQL incluidos son respaldo. NO necesitas ejecutarlos otra vez.
+
+ORDEN RECOMENDADO
+1. Cloudflare Worker de Mercado Pago:
+   Reemplaza el código del Worker por cloudflare-mercadopago-worker.js y publica.
+2. Cloudflare Pages / GitHub:
+   Sube el resto de los archivos de este ZIP a la raíz y reemplaza los existentes.
+3. Prueba en incógnito o con Ctrl+F5.
+
+INCLUYE
+- Portada post-aniversario y ciclo automático de campañas vencidas.
+- Precio/promociones coherentes entre catálogo, verificador y checkout.
+- Reserva de inventario durante Mercado Pago para evitar sobreventa.
+- Ficha compartible por producto: producto.html?id=...
+- Stock disponible que descuenta reservas activas.
+- Analítica: búsquedas, vistas, carrito, checkout, WhatsApp y compartidos.
+- Panel admin con resumen de crecimiento de 30 días.
+- Carga masiva inteligente: la IA compara con catálogo existente y actualiza fotos sin duplicar cuando hay coincidencia segura.
+- PWA básica, service worker, manifest, sitemap y SEO local/productos.
+- Botones flotantes y asistente corregidos.
+- Headers de seguridad y caché controlada.
+
+PRUEBAS MÍNIMAS DESPUÉS DE PUBLICAR
+- Abrir inicio y buscar un producto.
+- Abrir "Ver detalles" y compartir producto.
+- Agregar al carrito y comprobar promoción vigente.
+- Iniciar un checkout de Mercado Pago y verificar que la última pieza no pueda reservarse dos veces.
+- Abrir admin > resumen y comprobar el bloque "Crecimiento".
+- Probar carga masiva con una foto de un producto ya existente: debe sugerir coincidencia y no crear duplicado salvo que elijas "Crear como producto nuevo".

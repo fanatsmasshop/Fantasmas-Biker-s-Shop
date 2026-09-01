@@ -100,6 +100,7 @@
     else cart.push({ id, kind: "product", cart_key: id, name: product.name, price: Number(product.price), image_url: product.image_url || "", stock, quantity: 1 });
     writeStorage(STORAGE_KEY, cart);
     renderCart();
+    window.FANTASMAS_TRACK?.("add_to_cart", { productId: id, metadata: { source: "cart" } });
     const button = $("#cartOpenButton");
     button.classList.remove("cart-bump");
     void button.offsetWidth;
@@ -254,6 +255,7 @@
       });
       appliedCoupon = { code, ...result };
       feedback.textContent = `Código aplicado. Ahorras ${money(result.coupon_discount)} adicionales.`;
+      window.FANTASMAS_TRACK?.("coupon_apply", { metadata: { code, discount: Number(result.coupon_discount || 0) } });
       feedback.className = "coupon-feedback success";
       updateCheckoutSummary(result);
     } catch (error) {
@@ -349,10 +351,12 @@
     status.textContent = "Procesando pedido…";
     submit.disabled = true;
     submit.textContent = "Procesando…";
+    window.FANTASMAS_TRACK?.("checkout_start", { metadata: { payment_method: payload.payment_method, items: payload.items.length, subtotal: subtotal() } });
     try {
       if (payload.payment_method === "mercadopago") {
         const order = await postWorker("/checkout", payload);
         status.textContent = "Abriendo Mercado Pago…";
+        window.FANTASMAS_TRACK?.("checkout_success", { orderId: order.order_id || null, metadata: { stage: "redirect_mercadopago", order_number: order.order_number || "" } });
         checkoutRequestKey = "";
         location.href = order.checkout_url;
         return;
@@ -360,6 +364,7 @@
       if (payload.payment_method === "transfer") {
         const order = await postWorker("/order", payload);
         showTransferResult(payload, order);
+        window.FANTASMAS_TRACK?.("checkout_success", { orderId: order.order_id || null, metadata: { stage: "transfer_order", order_number: order.order_number || "" } });
         return;
       }
       let orderNumber = "";
@@ -373,6 +378,7 @@
     } catch (error) {
       status.textContent = error.message;
       status.classList.add("error");
+      window.FANTASMAS_TRACK?.("checkout_error", { metadata: { message: String(error.message || "").slice(0, 160), payment_method: payload.payment_method } });
     } finally {
       submit.disabled = false;
       submit.textContent = "Continuar";
@@ -402,7 +408,7 @@
     if (add) addProduct(add.dataset.addToCart);
     const row = event.target.closest("[data-cart-item]");
     if (row && event.target.closest("[data-cart-change]")) changeQuantity(row.dataset.cartItem, Number(event.target.closest("[data-cart-change]").dataset.cartChange));
-    if (row && event.target.closest("[data-cart-remove]")) { checkoutRequestKey = ""; cart = cart.filter((item) => (item.cart_key || item.id) !== row.dataset.cartItem); writeStorage(STORAGE_KEY, cart); renderCart(); }
+    if (row && event.target.closest("[data-cart-remove]")) { const removed=cart.find((item)=>(item.cart_key||item.id)===row.dataset.cartItem); checkoutRequestKey = ""; cart = cart.filter((item) => (item.cart_key || item.id) !== row.dataset.cartItem); writeStorage(STORAGE_KEY, cart); renderCart(); if(removed?.kind!=="raffle_number") window.FANTASMAS_TRACK?.("remove_from_cart", { productId: removed?.id || null }); }
   });
 
   $("#cartOpenButton").addEventListener("click", openCart);

@@ -467,6 +467,7 @@
     target.innerHTML = bulkProductDrafts.map((draft, index) => `<article class="bulk-product-draft" data-bulk-index="${index}">
       <img src="${draft.preview}" alt="Vista previa">
       <div class="bulk-product-fields"><label>Nombre<input data-bulk-field="name" value="${escapeHtml(draft.name)}" maxlength="120"></label><label>Precio<input data-bulk-field="price" type="number" min="0" step="0.01" value="${draft.price}"></label><label>Categoría<input data-bulk-field="category" list="categoryOptions" value="${escapeHtml(draft.category)}" maxlength="60"></label></div>
+      ${draft.matchProductId ? `<div class="bulk-match-hint"><b>✓ Coincidencia con catálogo ${Math.round(Number(draft.matchConfidence || 0) * 100)}%</b><span>${draft.matchSku ? `SKU ${escapeHtml(draft.matchSku)} · ` : ""}Al guardar se actualizará la foto del producto existente, no se duplicará.</span><button type="button" data-clear-bulk-match="${index}">Crear como producto nuevo</button></div>` : `<div class="bulk-match-hint neutral"><span>Sin coincidencia segura: se creará como producto nuevo.</span></div>`}
       <button type="button" class="delete" data-remove-bulk="${index}" aria-label="Quitar imagen">×</button>
     </article>`).join("");
     save.disabled = !bulkProductDrafts.length;
@@ -476,6 +477,37 @@
 
   function imageAsBase64(file) {
     return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(",")[1]); reader.onerror = reject; reader.readAsDataURL(file); });
+  }
+
+  function normalizeProductMatch(value) {
+    return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
+  function productMatchTokens(value) {
+    const stop = new Set(["de","del","la","las","el","los","para","con","sin","y","en","un","una","the","producto","general"]);
+    return new Set(normalizeProductMatch(value).split(/\s+/).filter((word) => word.length > 1 && !stop.has(word)));
+  }
+
+  function findCatalogMatch(draft, suggestion = {}) {
+    if (!products.length) return null;
+    const source = normalizeProductMatch(`${draft.file?.name || ""} ${suggestion.name || ""} ${suggestion.category || ""} ${suggestion.description || ""}`);
+    const sourceTokens = productMatchTokens(source);
+    let best = null;
+    products.forEach((product) => {
+      const target = normalizeProductMatch(`${product.sku || ""} ${product.name || ""} ${product.category || ""} ${product.description || ""}`);
+      const targetTokens = productMatchTokens(target);
+      const common = [...sourceTokens].filter((token) => targetTokens.has(token)).length;
+      const union = new Set([...sourceTokens, ...targetTokens]).size || 1;
+      let score = common / union;
+      const productName = normalizeProductMatch(product.name);
+      const suggestionName = normalizeProductMatch(suggestion.name);
+      if (suggestionName && (productName.includes(suggestionName) || suggestionName.includes(productName))) score += 0.34;
+      if (product.sku && source.includes(normalizeProductMatch(product.sku))) score += 0.5;
+      if (suggestion.category && normalizeProductMatch(product.category) === normalizeProductMatch(suggestion.category)) score += 0.10;
+      score = Math.min(1, score);
+      if (!best || score > best.score) best = { product, score };
+    });
+    return best && best.score >= 0.28 ? best : null;
   }
 
   async function analyzeBulkProducts() {
@@ -492,9 +524,17 @@
         if (!response.ok) { const detail = await response.text(); throw new Error(detail || `Ollama respondió ${response.status}`); }
         const result = await response.json();
         const suggestion = JSON.parse(result.response || "{}");
-        if (suggestion.name) draft.name = String(suggestion.name).trim();
-        if (suggestion.category) draft.category = String(suggestion.category).trim();
-        draft.description = suggestion.description ? String(suggestion.description).trim() : "";
+        const match = findCatalogMatch(draft, suggestion);
+        if (match) {
+          const existing = match.product;
+          draft.matchProductId = existing.id; draft.matchConfidence = match.score; draft.matchSku = existing.sku || ""; draft.matchOldImagePath = existing.image_path || "";
+          draft.name = existing.name; draft.category = existing.category || String(suggestion.category || "General").trim(); draft.price = existing.price ?? ""; draft.description = existing.description || String(suggestion.description || "").trim();
+        } else {
+          draft.matchProductId = null; draft.matchConfidence = 0; draft.matchSku = ""; draft.matchOldImagePath = "";
+          if (suggestion.name) draft.name = String(suggestion.name).trim();
+          if (suggestion.category) draft.category = String(suggestion.category).trim();
+          draft.description = suggestion.description ? String(suggestion.description).trim() : "";
+        }
         renderBulkProductQueue();
       }
       status.textContent = "Sugerencias listas. Revísalas antes de guardar.";
@@ -516,16 +556,24 @@
     const status = $("#bulkProductsStatus");
     const button = $("#saveBulkProductsButton");
     if (bulkProductDrafts.some((draft) => !draft.name.trim() || draft.price === "" || Number(draft.price) < 0)) return void (status.textContent = "Completa nombre y precio en todas las tarjetas.");
-    if (!confirm(`Se crearán ${bulkProductDrafts.length} productos con sus imágenes. ¿Continuar?`)) return;
-    button.disabled = true; status.textContent = "Subiendo imágenes y guardando productos…";
+    const matchedCount = bulkProductDrafts.filter((draft) => draft.matchProductId).length;
+    const newCount = bulkProductDrafts.length - matchedCount;
+    if (!confirm(`Se actualizarán ${matchedCount} productos existentes y se crearán ${newCount} nuevos. Las coincidencias no duplicarán productos. ¿Continuar?`)) return;
+    button.disabled = true; status.textContent = "Subiendo imágenes y actualizando catálogo…";
     try {
       for (const draft of bulkProductDrafts) {
         const uploaded = await uploadImage(draft.file, "products");
-        const { error } = await client.from("shop_products").insert({ name: draft.name.trim(), category: draft.category.trim() || "General", description: draft.description || "", price: Number(draft.price), image_url: uploaded.url, image_path: uploaded.path, active: true, featured: false, online_sale: true, sort_order: 0, updated_at: new Date().toISOString() });
-        if (error) throw error;
+        if (draft.matchProductId) {
+          const { error } = await client.from("shop_products").update({ image_url: uploaded.url, image_path: uploaded.path, updated_at: new Date().toISOString() }).eq("id", draft.matchProductId);
+          if (error) throw error;
+          if (draft.matchOldImagePath && draft.matchOldImagePath !== uploaded.path) await removeImage(draft.matchOldImagePath).catch(() => {});
+        } else {
+          const { error } = await client.from("shop_products").insert({ name: draft.name.trim(), category: draft.category.trim() || "General", description: draft.description || "", price: Number(draft.price), image_url: uploaded.url, image_path: uploaded.path, active: true, featured: false, online_sale: true, sort_order: 0, updated_at: new Date().toISOString() });
+          if (error) throw error;
+        }
       }
       bulkProductDrafts.forEach((draft) => URL.revokeObjectURL(draft.preview));
-      bulkProductDrafts = []; $("#bulkProductImages").value = ""; renderBulkProductQueue(); await loadProducts(); updateStats(); status.textContent = "Productos guardados correctamente."; toast("Carga rápida completada.");
+      bulkProductDrafts = []; $("#bulkProductImages").value = ""; renderBulkProductQueue(); await loadProducts(); updateStats(); status.textContent = `Carga lista: ${matchedCount} fotos vinculadas y ${newCount} productos nuevos.`; toast("Catálogo actualizado sin duplicados.");
     } catch (error) { status.textContent = `No se pudo completar la carga: ${error.message}`; }
     finally { button.disabled = !bulkProductDrafts.length; }
   }
@@ -822,7 +870,7 @@
   $("#analyzeBulkProductsButton")?.addEventListener("click", analyzeBulkProducts);
   $("#saveBulkProductsButton").addEventListener("click", saveBulkProducts);
   $("#bulkImageQueue").addEventListener("input", (event) => { const card = event.target.closest("[data-bulk-index]"); if (!card) return; const draft = bulkProductDrafts[Number(card.dataset.bulkIndex)]; if (draft) draft[event.target.dataset.bulkField] = event.target.value; });
-  $("#bulkImageQueue").addEventListener("click", (event) => { const button = event.target.closest("[data-remove-bulk]"); if (!button) return; const index = Number(button.dataset.removeBulk); URL.revokeObjectURL(bulkProductDrafts[index]?.preview); bulkProductDrafts.splice(index, 1); renderBulkProductQueue(); });
+  $("#bulkImageQueue").addEventListener("click", (event) => { const clear = event.target.closest("[data-clear-bulk-match]"); if (clear) { const index=Number(clear.dataset.clearBulkMatch); const draft=bulkProductDrafts[index]; if(draft){draft.matchProductId=null;draft.matchConfidence=0;draft.matchSku="";draft.matchOldImagePath="";renderBulkProductQueue();} return; } const button = event.target.closest("[data-remove-bulk]"); if (!button) return; const index = Number(button.dataset.removeBulk); URL.revokeObjectURL(bulkProductDrafts[index]?.preview); bulkProductDrafts.splice(index, 1); renderBulkProductQueue(); });
   $("#newPromotionButton").addEventListener("click", () => openPromotion());
   $("#promotionForm").elements.promotion_kind.addEventListener("change", refreshPromotionFields);
   $("#promotionForm").elements.scope.addEventListener("change", refreshPromotionFields);
