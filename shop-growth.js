@@ -14,7 +14,7 @@
     if(window.FANTASMAS_DB?.rpc)return window.FANTASMAS_DB;
     if(analyticsClient?.rpc)return analyticsClient;
     const cfg=window.FANTASMAS_SUPABASE;
-    if(window.supabase?.createClient&&cfg?.url&&cfg?.publishableKey){analyticsClient=window.supabase.createClient(cfg.url,cfg.publishableKey);return analyticsClient;}
+    if(window.supabase?.createClient&&cfg?.url&&cfg?.publishableKey){analyticsClient=window.supabase.createClient(cfg.url,cfg.publishableKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});return analyticsClient;}
     return null;
   }
   async function track(eventType,{productId=null,orderId=null,query=null,metadata={}}={}){

@@ -143,15 +143,28 @@
   window.FANTASMAS_RENDER_CUSTOM_SECTIONS = renderCustomSections;
   window.FANTASMAS_APPLY_SECTIONS = applySections;
 
+  // Fallback seguro: si Supabase tarda, una sesión caducó o la lectura de
+  // shop_sections falla, nunca mostramos una portada desordenada ni rifas como
+  // primer bloque. Los datos remotos sustituyen este estado en cuanto cargan.
+  const fallbackSections = [
+    ["header",10,true,"compact"],["hero",20,true,"featured"],["announcement",30,true,"compact"],
+    ["products",40,true,"grid"],["promotions",50,true,"featured"],["catalog_intro",60,true,"grid"],
+    ["rewards",70,true,"featured"],["raffles",80,true,"grid"],["allies",90,true,"featured"],
+    ["events",100,false,"grid"],["anniversary",110,false,"compact"],["contact",120,true,"compact"],["footer",130,true,"compact"]
+  ].map(([section_key,sort_order,enabled,layout]) => ({ section_key, sort_order, enabled, layout }));
+
   if (!configured || !window.supabase) {
-    window.FANTASMAS_SECTIONS_READY = Promise.resolve([]);
+    window.FANTASMAS_SECTIONS_READY = Promise.resolve(applySections(fallbackSections));
     return;
   }
 
-  const client = window.supabase.createClient(config.url, config.publishableKey);
+  const client = window.supabase.createClient(config.url, config.publishableKey, {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
   window.FANTASMAS_SECTIONS_READY = (async function () {
     const { data, error } = await client.from("shop_sections").select("*").order("sort_order");
-    if (error || !data) return [];
+    if (error || !data?.length) {
+      console.warn("[Fantasmas] No se pudo leer el orden remoto; se usa el orden seguro local.", error || "sin filas");
+      return applySections(fallbackSections);
+    }
     return applySections(data);
   })();
 })();

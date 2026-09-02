@@ -59,7 +59,7 @@
           <a class="boton boton-rosa" id="mainCta" href="#productosPublicos" data-setting-text="main_cta_text" data-setting-href="main_cta_url">Ver productos</a>
           <a class="boton boton-oscuro" id="catalogCta" href="verificador-precios.html" data-setting-text="catalog_cta_text" data-setting-href="catalog_cta_url">Verificar precio</a>
         </div>
-        <div class="datos-evento" id="countdown" aria-label="Cuenta regresiva">
+        <div class="datos-evento" id="countdown" aria-label="Cuenta regresiva" hidden>
           <div><strong id="countdownDays">00</strong><span>Días</span></div>
           <div><strong id="countdownHours">00</strong><span>Horas</span></div>
           <div><strong id="countdownMinutes">00</strong><span>Minutos</span></div>
@@ -94,7 +94,7 @@
     </section>
 
 
-    <section class="seccion editable-section" id="rifas" data-section-key="raffles">
+    <section class="seccion editable-section" id="rifas" data-section-key="raffles" hidden>
       <div class="titulo-seccion">
         <div>
           <p class="etiqueta" data-setting-text="raffles_eyebrow">RIFAS ACTIVAS</p>
@@ -108,24 +108,24 @@
       <div class="pasos">
         <strong data-setting-text="raffles_steps_title">¿Cómo participo?</strong>
         <span data-setting-text="raffles_step_1">① Elige una rifa</span>
-        <span data-setting-text="raffles_step_2">② Aparta por WhatsApp</span>
-        <span data-setting-text="raffles_step_3">③ Confirma tu pago</span>
+        <span data-setting-text="raffles_step_2">② Selecciona tus números</span>
+        <span data-setting-text="raffles_step_3">③ Agrégalos al carrito y completa tu pedido</span>
         <span data-setting-text="raffles_step_4">④ Sigue el sorteo oficial</span>
       </div>
-      <p class="nota" data-setting-text="raffles_note">Los números confirmados permanecen ligados a su rifa conforme a las condiciones publicadas en cada dinámica.</p>
+      <p class="nota" data-setting-text="raffles_note">Consulta disponibilidad, premios y condiciones de cada rifa antes de participar.</p>
     </section>
 
-    <section class="aniversario editable-section" id="aniversario" data-section-key="anniversary">
+    <section class="aniversario editable-section" id="aniversario" data-section-key="anniversary" hidden>
       <div class="fecha-grande"><b data-setting-text="anniversary_day">24</b> <span data-setting-text="anniversary_date_label">AGOSTO 2026</span></div>
       <div>
         <p class="etiqueta etiqueta-negra" data-setting-text="anniversary_eyebrow">GUARDA LA FECHA</p>
-        <h2 data-section-title>NUESTRO ANIVERSARIO<br>SE VIVE EN LA TIENDA.</h2>
+        <h2 data-section-title>CAMPAÑA ESPECIAL</h2>
         <p data-section-subtitle>Ven por promociones, rifas y sorpresas de 11:00 a 19:00 h.</p>
       </div>
       <a class="boton boton-claro" href="https://maps.app.goo.gl/NqPb7tJ6CNmK2Siq6" target="_blank" data-setting-text="anniversary_cta_text" data-setting-href="anniversary_cta_url">Cómo llegar ↗</a>
     </section>
 
-    <section class="seccion editable-section" id="tienda" data-section-key="catalog_intro">
+    <section class="seccion editable-section" id="tienda" data-section-key="catalog_intro" hidden>
       <div class="titulo-seccion">
         <div>
           <p class="etiqueta" data-setting-text="catalog_eyebrow">NUESTRA TIENDA</p>
@@ -149,7 +149,7 @@
       <div class="eventos-grid" id="eventosDinamicos"></div>
     </section>
 
-    <section class="beneficios editable-section" id="beneficios" data-section-key="rewards">
+    <section class="beneficios editable-section" id="beneficios" data-section-key="rewards" hidden>
       <div>
         <p class="etiqueta" data-setting-text="rewards_eyebrow">FANTASMAS REWARDS</p>
         <h2 data-section-title>TU LEALTAD<br>TAMBIÉN RUEDA.</h2>
@@ -159,7 +159,7 @@
       <div class="entregas"><b data-setting-text="delivery_title">ENTREGAS Y ENVÍOS</b><p data-setting-text="delivery_text">Tienda física, Mexibús L1 estación UNITEC y Línea B Cd. Azteca–Buenavista con compra mínima de $300. Envíos nacionales con cotización.</p></div>
     </section>
 
-    <section class="aliados editable-section" id="aliados" data-section-key="allies">
+    <section class="aliados editable-section" id="aliados" data-section-key="allies" hidden>
       <div class="aliados-logo">
         <img src="logo-aliados.png" alt="Aliados Fantasma, proyecto impulsado por Fantasmas Biker's Shop">
       </div>
@@ -171,7 +171,7 @@
       </div>
     </section>
 
-    <section class="contacto editable-section" id="contacto" data-section-key="contact">
+    <section class="contacto editable-section" id="contacto" data-section-key="contact" hidden>
       <div>
         <p class="etiqueta" data-setting-text="contact_eyebrow">VISÍTANOS</p>
         <h2 data-section-title>ESTA ES TU<br>CASA BIKER.</h2>
@@ -194,7 +194,7 @@
     </section>
   </main>
 
-  <footer id="pie" data-section-key="footer">
+  <footer id="pie" data-section-key="footer" hidden>
     <div class="marca marca-logo marca-logo-footer"><img src="logo-nombre.png" alt="Fantasmas Biker's Shop"></div>
     <p data-setting-text="footer_tagline">Rodando desde Cd. Azteca.</p>
     <small data-setting-text="footer_copyright">© 2026 Fantasmas Biker's Shop · Sitio oficial</small>
@@ -263,11 +263,11 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="script.js"></script>
-  <script src="site-editor.js?v=15"></script>
-  <script src="public-data.js?v=18"></script>
+  <script src="site-editor.js?v=19"></script>
+  <script src="public-data.js?v=19"></script>
   <script src="shop-cart.js?v=14"></script>
   <script src="asistente-fantasma.js?v=2"></script>
-  <script src="shop-growth.js?v=20260901-FIX1"></script>
+  <script src="shop-growth.js?v=20260902-STABLE1"></script>
   <script src="shop-modern.js?v=20260901-FIX1" defer></script>
 </body>
 </html>

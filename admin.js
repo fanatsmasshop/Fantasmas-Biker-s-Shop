@@ -91,7 +91,8 @@
 
   async function initialize() {
     if (!configured || !window.supabase) return showConfigurationError();
-    client = window.supabase.createClient(config.url, config.publishableKey);
+    client = window.FANTASMAS_ADMIN_CLIENT || window.supabase.createClient(config.url, config.publishableKey);
+    window.FANTASMAS_ADMIN_CLIENT = client;
 
     const { data } = await client.auth.getSession();
     if (data.session?.user) await enterApp(data.session.user);

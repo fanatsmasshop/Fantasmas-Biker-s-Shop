@@ -3,7 +3,8 @@
   const configured = config.url && config.publishableKey && !config.url.includes("PON_AQUI") && !config.publishableKey.includes("PON_AQUI");
   if (!configured || !window.supabase) return;
 
-  const client = window.supabase.createClient(config.url, config.publishableKey);
+  const client = window.FANTASMAS_ADMIN_CLIENT || window.supabase.createClient(config.url, config.publishableKey);
+  window.FANTASMAS_ADMIN_CLIENT = client;
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const safe = (text) => String(text || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
@@ -45,7 +46,7 @@
     announcement: "Franja de anuncios",
     promotions: "Promociones",
     raffles: "Rifas",
-    anniversary: "Aniversario",
+    anniversary: "Campaña especial",
     catalog_intro: "Presentación de la tienda",
     products: "Productos",
     events: "Mini eventos",
@@ -1033,7 +1034,8 @@
     const countdown = doc.querySelector("#countdown");
     if (!countdown) return;
     countdown.hidden = String(storeSettings.countdown_enabled ?? "true") === "false";
-    let source = storeSettings.event_datetime || "2026-08-24T11:00:00-06:00";
+    let source = String(storeSettings.event_datetime || "").trim();
+    if (!source) { countdown.hidden = true; return; }
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(source)) source += ":00-06:00";
     const difference = Math.max(0, new Date(source).getTime() - Date.now());
     const values = { countdownDays: Math.floor(difference / 86400000), countdownHours: Math.floor(difference / 3600000) % 24, countdownMinutes: Math.floor(difference / 60000) % 60, countdownSeconds: Math.floor(difference / 1000) % 60 };
@@ -1049,6 +1051,22 @@
       selected.classList.add("builder-selected");
       if (scroll) scrollPreviewSectionIntoView(selected, true);
     }
+  }
+
+  function verifyPublishedPreview() {
+    const frame = $("#sitePreview");
+    const status = $("#sectionEditorStatus");
+    if (!frame) return;
+    previewPrepared = false;
+    previewResizeObserver?.disconnect();
+    if (status) status.textContent = "Verificando publicación…";
+    frame.addEventListener("load", () => {
+      requestAnimationFrame(() => {
+        if (status) status.textContent = "Publicación sincronizada";
+        notify("Publicación verificada con la misma página que ve el cliente.");
+      });
+    }, { once: true });
+    frame.src = `index.html?preview=1&builder=15&published=${Date.now()}`;
   }
 
   async function saveSections() {
@@ -1085,9 +1103,9 @@
       await client.storage.from("shop-media").remove([...pendingMediaRemovals]);
       pendingMediaRemovals.clear();
     }
-    $("#sectionEditorStatus").textContent = "Cambios publicados";
+    $("#sectionEditorStatus").textContent = "Cambios publicados · verificando…";
     setEditorDirty(false);
-    notify("La página pública y sus secciones fueron actualizadas.");
+    verifyPublishedPreview();
   }
 
   function fillCategoryOptions() {

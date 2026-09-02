@@ -1,0 +1,33 @@
+FANTASMAS BIKER'S SHOP · ESTABILIZACIÓN + MEJORA · 02/09/2026
+
+OBJETIVO
+Corregir la diferencia intermitente entre el editor y la página pública, eliminar contenido heredado del aniversario y endurecer funciones internas sin afectar tienda, promociones, rifas, carrito o Mercado Pago.
+
+CAMBIOS PRINCIPALES
+- Editor y publicación: al guardar, la vista previa recarga la página real y confirma sincronización.
+- Orden seguro local: si shop_sections tarda o falla, se usa Portada > Productos > Promociones > Categorías > Rewards > Rifas > Aliados > Contacto.
+- Se evita que Rifas aparezca primero durante la carga.
+- Clientes Supabase públicos ya no usan ni refrescan la sesión administrativa guardada.
+- Admin/editor/analítica comparten un solo cliente autenticado para evitar carreras de refresh token.
+- Contador de evento sin fallback viejo; no revive fechas del aniversario.
+- Sección heredada "Aniversario" pasa a "Campaña especial" y queda desactivada.
+- Textos de rifas actualizados al flujo real de carrito.
+- Caché de archivos del editor endurecida para evitar mezclar versiones.
+- RPC de administración/checkout endurecidos en Supabase.
+
+BASE DE DATOS
+Los cambios de Supabase YA FUERON APLICADOS por ChatGPT.
+NO ejecutes el archivo SQL de respaldo salvo que estés restaurando otra instancia conscientemente.
+
+PUBLICACIÓN
+1. Sube TODOS los archivos web de este ZIP a la raíz, reemplazando los existentes.
+2. No hace falta tocar el Worker de Mercado Pago en esta actualización.
+3. No hace falta ejecutar SQL.
+4. Espera el deploy de Cloudflare Pages.
+5. Cierra las pestañas de la tienda/admin y abre de nuevo. Haz Ctrl+F5 una sola vez.
+
+PRUEBA RÁPIDA
+- Abre /admin y entra al Editor de página.
+- Mueve Portada o Productos, guarda y espera "Publicación sincronizada".
+- Abre la pública: debe respetar el mismo orden.
+- Prueba Verificador, producto, carrito y una rifa sin completar pago real.

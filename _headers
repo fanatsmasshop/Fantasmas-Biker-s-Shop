@@ -44,3 +44,9 @@
 
 /shop-modern.js
   Cache-Control: no-cache, must-revalidate
+
+/admin.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/admin-growth.js
+  Cache-Control: no-cache, no-store, must-revalidate
