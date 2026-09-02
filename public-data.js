@@ -315,7 +315,7 @@
     let source = value.event_datetime || "2026-08-24T11:00:00-06:00";
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(source)) source += ":00-06:00";
     const eventTime = new Date(source).getTime();
-    if (Number.isFinite(eventTime) && eventTime < Date.now() && !builderPreview) {
+    if (Number.isFinite(eventTime) && eventTime < Date.now()) {
       value.countdown_enabled = "false";
       const anniversary = document.querySelector('[data-section-key="anniversary"]');
       if (anniversary) anniversary.hidden = true;

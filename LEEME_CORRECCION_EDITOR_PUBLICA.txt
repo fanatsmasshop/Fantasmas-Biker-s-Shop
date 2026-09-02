@@ -1,0 +1,39 @@
+FANTASMAS BIKER'S SHOP · CORRECCIÓN EDITOR / PÁGINA PÚBLICA
+Fecha: 2026-09-01
+
+YA APLICADO EN SUPABASE:
+- Portada habilitada y colocada al inicio.
+- Productos y promociones vuelven arriba de las rifas.
+- Rifas agregadas correctamente al sistema de secciones y bajadas en el orden.
+- Aniversario vencido oculto.
+- Textos de aniversario obsoletos retirados de portada/franja.
+- Aliados vuelve a apuntar a Aliados Fantasma.
+
+ARCHIVOS A SUBIR A CLOUDFLARE/GITHUB:
+- index.html
+- admin.html
+- editor.js
+- site-editor.js
+- public-data.js
+- shop-growth.js
+- shop-growth.css
+- shop-modern.js
+- shop-modern.css
+- sw.js
+- _headers
+
+QUÉ CORRIGE:
+1. La vista previa del editor y la página pública usan el mismo orden.
+2. La franja Pago seguro / Recoge / Envíos / Precio vigente queda debajo de la portada, no arriba de todo.
+3. El editor abre seleccionado en Portada en vez de Encabezado.
+4. Se evita que JS/CSS antiguos queden atrapados por el service worker.
+5. Las rifas siguen activas, pero aparecen después de catálogo/promociones/rewards y con tarjetas más compactas.
+6. La vista previa ya aplica el mismo ciclo de vida que la publicación.
+
+NO EJECUTES EL SQL: database_fix_home_editor_order_v18.sql es solo respaldo; el cambio ya se aplicó.
+
+DESPUÉS DE SUBIR:
+- espera a que Cloudflare termine;
+- cierra la pestaña del admin y la tienda;
+- vuelve a abrirlas;
+- haz Ctrl+F5 una vez.

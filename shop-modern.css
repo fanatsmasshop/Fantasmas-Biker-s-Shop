@@ -20,8 +20,26 @@ main>.editable-section:not(.portada),main>.promociones-publicas,main>.productos-
 footer{width:min(calc(100% - 40px),var(--fbs-max))!important;margin:0 auto!important;padding:34px 0!important;border-top:1px solid var(--fbs-line)!important}.whatsapp-flotante{right:20px!important;bottom:20px!important;box-shadow:0 16px 40px rgba(0,0,0,.35)!important}
 .cart-drawer,.checkout-dialog,.product-image-dialog{border-radius:22px!important;border-color:var(--fbs-line)!important;background:#0b1017!important}.cart-drawer header,.checkout-dialog header,.product-image-dialog header{background:#101722!important;border-bottom-color:var(--fbs-line)!important}.assistant-panel{border-radius:22px!important}
 .fbs-section-reveal{opacity:0;transform:translateY(18px);transition:opacity .55s ease,transform .55s cubic-bezier(.2,.75,.2,1)}.fbs-section-reveal.fbs-visible{opacity:1;transform:none}
-body.fbs-postevent #countdown,body.fbs-postevent #aniversario{display:none!important}
+body.fbs-postevent #countdown{display:none!important}
 body.fbs-no-raffles #rifas,body.fbs-no-raffles nav a[href="#rifas"]{display:none!important}
 @media(max-width:980px){.encabezado{padding-inline:20px!important}.portada{grid-template-columns:1fr!important}.portada-visual{justify-self:start!important;max-width:380px!important}.productos-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.titulo-seccion{grid-template-columns:1fr!important}.beneficios,.contacto,.aliados{grid-template-columns:1fr!important}.entregas{grid-column:1!important}.aliados-logo img{max-width:220px!important}}
 @media(max-width:680px){html{scroll-padding-top:70px}.encabezado{height:68px!important}.encabezado nav{top:68px!important;left:10px!important;right:10px!important;border:1px solid var(--fbs-line)!important;border-radius:16px!important;background:rgba(8,11,17,.98)!important;box-shadow:var(--fbs-shadow)!important}.portada,.franja,main>.editable-section:not(.portada),main>.promociones-publicas,main>.productos-publicos,.beneficios,.contacto,footer{width:calc(100% - 20px)!important}.portada{margin-top:10px!important;padding:34px 20px!important;border-radius:22px!important;min-height:0!important}.portada h1{font-size:clamp(2.65rem,14vw,4rem)!important}.portada-visual{max-width:100%!important}.datos-evento{grid-template-columns:repeat(2,1fr);display:grid!important}.titulo-seccion h2,.beneficios h2,.contacto h2,.aliados h2{font-size:clamp(2.2rem,11vw,3.25rem)!important}.catalog-toolbar{top:76px!important;align-items:stretch!important}.productos-grid{grid-template-columns:1fr!important}.producto-imagen{aspect-ratio:1/1!important}.producto-info h3{min-height:0!important}.promociones-grid,.rifas-grid,.categorias,.eventos-grid{grid-template-columns:1fr!important}.aliados{padding:28px 20px!important}.contacto{padding-bottom:76px!important}.acciones .boton{flex:auto!important;width:100%!important}footer{grid-template-columns:1fr!important}.fbs-section-reveal{opacity:1!important;transform:none!important}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}.fbs-section-reveal{opacity:1!important;transform:none!important;transition:none!important}.producto-publico,.categorias article,.boton{transition:none!important}}
+
+/* FIX 2026-09-01 · Rifas compactas y jerarquía visual */
+#rifas{border-top:1px solid var(--fbs-line)}
+#rifas .titulo-seccion{margin-bottom:24px!important}
+.rifas-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.rifa{min-width:0!important}
+.rifa-cabecera{height:190px!important;background:#f3f5f7!important}
+.rifa-cabecera>img{object-fit:contain!important;padding:8px!important}
+.rifa-cabecera .cantidad{top:10px!important;right:10px!important;border-radius:999px!important;padding:7px 10px!important;background:rgba(6,8,13,.9)!important}
+.rifa-cuerpo{padding:20px!important}
+.rifa .precio{font-size:clamp(2rem,3.2vw,3rem)!important;line-height:1!important}
+.rifa-cuerpo .mini{margin:14px 0 7px!important}
+.rifa h3{font-size:1.05rem!important;line-height:1.3!important;min-height:0!important}
+.rifa .secundarios{font-size:.78rem!important;min-height:0!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.rifa a{margin-top:14px!important;padding-top:14px!important}
+.pasos{margin-top:22px!important;padding:16px!important;border-radius:16px!important;background:rgba(255,255,255,.025)}
+@media(max-width:980px){.rifas-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:680px){.rifas-grid{grid-template-columns:1fr!important}.rifa-cabecera{height:210px!important}}

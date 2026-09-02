@@ -30,6 +30,14 @@
     strip.id='shopTrustStrip'; strip.className='shop-trust-strip'; strip.setAttribute('aria-label','Ventajas de comprar en Fantasmas Biker\'s Shop');
     strip.innerHTML='<div><span>🔒</span><b>Pago seguro</b><small>Mercado Pago</small></div><div><span>🏪</span><b>Recoge en tienda</b><small>Cd. Azteca</small></div><div><span>📦</span><b>Envíos</b><small>A todo México</small></div><div><span>🏷️</span><b>Precio vigente</b><small>Promos automáticas</small></div>';
     hero.insertAdjacentElement('afterend',strip);
+    const syncTrustStrip = () => {
+      const order = hero.style.order || '0';
+      strip.style.order = order;
+      strip.hidden = hero.hidden || hero.dataset.editorDisabled === 'true';
+    };
+    syncTrustStrip();
+    new MutationObserver(syncTrustStrip).observe(hero,{attributes:true,attributeFilter:['style','hidden','data-editor-disabled']});
+    document.addEventListener('fantasmas:sections-applied',syncTrustStrip);
   }
 
   function detailUrl(product){return `producto.html?id=${encodeURIComponent(product.id)}`;}

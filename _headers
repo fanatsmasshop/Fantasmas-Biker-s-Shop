@@ -20,12 +20,27 @@
   Cache-Control: no-cache, no-store, must-revalidate
 
 /*.js
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cache-Control: public, max-age=300, must-revalidate
   X-Content-Type-Options: nosniff
 
 /*.css
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cache-Control: public, max-age=300, must-revalidate
   X-Content-Type-Options: nosniff
 
 /*.png
   Cache-Control: public, max-age=604800
+
+/site-editor.js
+  Cache-Control: no-cache, must-revalidate
+
+/editor.js
+  Cache-Control: no-cache, must-revalidate
+
+/public-data.js
+  Cache-Control: no-cache, must-revalidate
+
+/shop-growth.js
+  Cache-Control: no-cache, must-revalidate
+
+/shop-modern.js
+  Cache-Control: no-cache, must-revalidate

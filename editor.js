@@ -371,7 +371,7 @@
     renderRaffles();
     renderEvents();
     fillCategoryOptions();
-    if (!selectedSectionKey && sections.length) selectSection(sections[0].section_key);
+    if (!selectedSectionKey && sections.length) { const preferred = sections.find((item) => item.section_key === "hero" && item.enabled) || sections.find((item) => item.enabled && !fixedSections.has(item.section_key)) || sections[0]; selectSection(preferred.section_key, false); }
     applyPreviewSections();
     $("#sectionEditorStatus").textContent = customSchemaReady ? "Editor total listo" : "Falta activar secciones nuevas en Supabase";
     initialized = true;
@@ -926,7 +926,7 @@
       previewPrepared = false;
       previewResizeObserver?.disconnect();
       $("#sectionEditorStatus").textContent = "Reconstruyendo la página completa…";
-      $("#sitePreview").src = `index.html?preview=1&builder=10.5&repair=${Date.now()}`;
+      $("#sitePreview").src = `index.html?preview=1&builder=15&repair=${Date.now()}`;
       return;
     }
     if (!missingSystemSections.length) previewRepairAttempts = 0;
